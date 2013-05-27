@@ -786,43 +786,27 @@ medview.dicom.Sequence = function(dv, offset, length, littleEndian, explicit)
 }
 
 medview.dicom.Sequence.prototype.readItem = function(dv, offset, itemLength, littleEndian, explicit) {
-/*
-  var de = new medview.dicom.DataElement(dv, offset, littleEndian, explicit);
-  console.log(de);
-  console.log("sequence");
-  this.currOffset += de.getLocalOffset();
-//  this.addDataElement(de);
-  console.log("Data element offset: " + de.getLocalOffset());
-
-  var itemLength = de.vl;
-
-  if (de.group === 0xFFFE && de.element === 0xE000) {
-  */
-    var seqItem = new medview.dicom.SequenceItem();
-    this.items.push(seqItem);
-//    var count = 0;
-    do {
-      // dei: Every data element in the sequence item
-      var dei = new medview.dicom.DataElement(dv, this.curOffset, littleEndian, explicit);
-      // console.log("dei.getLocalOffset() " + dei.getLocalOffset());
-      this.curOffset += dei.getLocalOffset();
-      // console.log(this.curOffset);
-      if (dei.group !== 0xFFFE) {
-        seqItem.addDataElement(dei);
-      }
-      
-//      count++;
-
-      var curItemLength = this.curOffset - offset;
-
-      // Compare length if available.
-      var endItem = (itemLength == -1 && dei.group === 0xFFFE && dei.element === 0xE00D) || (curItemLength == itemLength);
+  var seqItem = new medview.dicom.SequenceItem();
+  this.items.push(seqItem);
+  do {
+    // dei: Every data element in the sequence item
+    var dei = new medview.dicom.DataElement(dv, this.curOffset, littleEndian, explicit);
+    // console.log("dei.getLocalOffset() " + dei.getLocalOffset());
+    this.curOffset += dei.getLocalOffset();
+    // console.log(this.curOffset);
+    if (dei.group !== 0xFFFE) {
+      seqItem.addDataElement(dei);
     }
-    while (!endItem);
-    console.log("End of sequence item"); 
-//  } 
+    
+    var curItemLength = this.curOffset - offset;
 
-    return curItemLength;
+    // Compare length if available.
+    var endItem = (itemLength == -1 && dei.group === 0xFFFE && dei.element === 0xE00D) || (curItemLength == itemLength);
+  }
+  while (!endItem);
+  console.log("End of sequence item"); 
+
+  return curItemLength;
 }
 
 /*
