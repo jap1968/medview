@@ -1,0 +1,143 @@
+html {
+  height: 100%;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+  background-color: black;
+  overflow: hidden;
+}
+/*
+ [type='text']
+*/
+input {
+ font-size: 1.2em;
+ font-family: sans-serif;
+}
+
+/* ************************************************************************** */
+
+.splashLoading:before {
+  position: absolute;
+  content: "";
+  width: 100%;  
+  min-height: 100%;
+  overflow: hidden;
+  z-index: 2000;
+  pointer-events: auto;
+  background: rgba(255, 255, 255, 0.8) url('./img/splash.gif') 50% 50% no-repeat;
+}
+
+/* ************************************************************************** */
+
+.patient .patId {
+  font-weight: bold;
+}
+
+.patient .male {
+}
+
+.patient .male:after {
+  padding: 0 0.5em;
+  content: url("img/icon_male_small.png");
+  vertical-align: -25%;
+}
+
+
+.patient .female {
+}
+
+.patient .female:after {
+  padding: 0 0.5em;
+  content: url("img/icon_female_small.png");
+  vertical-align: -25%;
+}
+
+
+.patient .birthdate {
+  font-size: 0.8em;
+}
+
+/* ************************************************************************** */
+
+#studyListArea {
+  z-index: 10;
+  display: none;
+  position: relative;
+  height: 700px;
+}
+
+/*
+#studyListArea:before {
+  display: none;
+  position: relative;
+  z-index: 2000;
+  background: rgba(255, 255, 255, 0.8) url('./img/splash.gif') 50% 50% no-repeat;
+  pointer-events: none;
+}
+*/
+
+#studyList {
+  background-color: #3f3f3f;
+  margin: 0.5em;
+  padding: 0;
+}
+
+#studyList dt {
+  font-size: 1.2em;
+  padding: 0.3em;
+  margin-top: 0.4em;
+  background-color: #bfbfbf;
+}
+
+#studyList dd {
+  font-size: 1em;
+  padding: 0.2em;
+  background-color: #cfcfcf;
+}
+
+
+#studyList dd:hover {
+  background-color: #dfdfdf;
+  cursor: hand; cursor: pointer;
+}
+
+/* ************************************************************************** */
+
+#seriesListArea {
+  z-index: 10;
+  display: none;
+/*  background-color: black; */
+  height: 700px;
+  position: relative;
+
+
+}
+
+#seriesList {
+  background-color: #3f3f3f;
+  margin: 0.5em;
+  padding: 0;
+}
+
+#seriesList dt {
+  font-size: 1.2em;
+  padding: 0.3em;
+  margin-top: 0.4em;
+  background-color: #bfbfbf;
+}
+
+#seriesList dd {
+  font-size: 1em;
+  padding: 0.2em;
+  background-color: #cfcfcf;
+}
+
+#seriesList dd:hover {
+  background-color: #dfdfdf;
+  cursor: hand; cursor: pointer;
+}
+

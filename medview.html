@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <link href="medview.css" rel="stylesheet" type="text/css">
+
+<!--    <meta name="viewport" content="initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, target-densitydpi=device-dpi"> -->
+<!-- , target-densitydpi=device-dpi -->
+    
+    <meta content='user-scalable=no, initial-scale=1, width=device-width' id='viewport' name='viewport'>
+    <title></title>
+  </head>
+  <body>
+
+    <div id="controls" style="position: absolute; top: 0; left: 0;"></div>
+    <div id="adjControls" style="position: absolute; bottom: 0; width: 100%;"></div>
+    <div id="imgGrid"></div>
+
+<!-- In the case you do not have access to the public CDN server from your network -->
+<!--    <script src="/jquery/jquery-1.10.0.min.js"></script> -->    
+    <script src="http://code.jquery.com/jquery-1.10.0.min.js"></script>
+
+    <!-- Load of the medview libraries -->
+    <script src="js/medview.js"></script>
+    <script src="js/html.js"></script>
+    <script src="js/gateway.js"></script>
+    <script src="js/dicom.js"></script>
+
+<!-- Display properly on devices having high dpi values (Nexus 4) -->
+<script type="text/javascript">
+var viewPortScale = 1 / window.devicePixelRatio;
+$('#viewport').attr('content', 'user-scalable=no, initial-scale='+viewPortScale+', width=device-width');
+</script>
+
+  </body>
+</html>
