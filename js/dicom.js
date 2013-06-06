@@ -135,7 +135,7 @@ medview.dicom.Instance = function(uid)
   
   var mih; // medview.dicom.MetaInformationHeader
   this.groups = {};
-  this.ab; // ArrayBuffer (response)
+//  this.ab; // ArrayBuffer (response)
   this.sampleBuf = {}; // Array buffer with the samples
 
   this.setSeries = function(series) {
@@ -167,9 +167,9 @@ medview.dicom.Instance = function(uid)
         var time = end - start;
         // console.log("size: " + len + " bytes");
         console.log("load time: " + time + "ms");
-        instance.ab = this.response; // The instance points to the ArrayBuffer (response)
+//        instance.ab = this.response; // The instance points to the ArrayBuffer (response)
         instance.parse(this.response);
-        instance.prepareSampleBuffer();
+        instance.prepareSampleBuffer(this.response);
 //        instance.display(document.getElementById('canvas1'));
         
         callback(instance);
@@ -309,19 +309,19 @@ medview.dicom.Instance = function(uid)
     if (bitsAllocated == 8) {
       this.sampleBuf['length'] = pixelBufferLength;
       if (pixelRepresentation == 0) {
-        this.sampleBuf['buffer'] = new Uint8Array(this.ab, pixelBufferStart, pixelBufferLength);
+        this.sampleBuf['buffer'] = new Uint8Array(buffer, pixelBufferStart, pixelBufferLength);
       }
       else { // pixelRepresentation == 1
-        this.sampleBuf['buffer'] = new Int8Array(this.ab, pixelBufferStart, pixelBufferLength);
+        this.sampleBuf['buffer'] = new Int8Array(buffer, pixelBufferStart, pixelBufferLength);
       }
     }
     else { // bitsAllocated == 16
       this.sampleBuf['length'] = pixelBufferLength / 2;
       if (pixelRepresentation == 0) {
-        this.sampleBuf['buffer'] = new Uint16Array(this.ab, pixelBufferStart, this.sampleBuf['length']);
+        this.sampleBuf['buffer'] = new Uint16Array(buffer, pixelBufferStart, this.sampleBuf['length']);
       }
       else { // pixelRepresentation == 1
-        this.sampleBuf['buffer'] = new Int16Array(this.ab, pixelBufferStart, this.sampleBuf['length']);
+        this.sampleBuf['buffer'] = new Int16Array(buffer, pixelBufferStart, this.sampleBuf['length']);
       }
     }
 
@@ -463,8 +463,9 @@ medview.dicom.DataElement = function(dv, offset, littleEndian, explicit)
 
     if (this.group == 0xfffe) { // Item / delimitation item / sequence delimitation item
       if (this.element == 0xe000 || this.element == 0xe00d || this.element == 0xe0dd) {
-        console.log("Sequence element: (" + this.group.toString(16) + ", " + this.element.toString(16) + ")");
-        console.log("curOffset: " + this.curOffset);
+        console.log("");
+        console.log(" *** Sequence element: (" + this.group.toString(16) + ", " + this.element.toString(16) + ")");
+        console.log("curOffset: " + this.curOffset + " = 0x" + this.curOffset.toString(16));
         explicit = false;
       }
     }
@@ -500,7 +501,7 @@ medview.dicom.DataElement = function(dv, offset, littleEndian, explicit)
             console.log(" +++ Create object Sequence. curOffset: " + this.curOffset);
   console.log(this);
             
-            var sq = new medview.dicom.Sequence(dv, this.curOffset, this.vl, littleEndian, explicit);
+            var sq = new medview.dicom.Sequence(dv, this.curOffset, this.vr, this.vl, littleEndian, explicit);
             // console.log("this.curOffset: " + this.curOffset + ", sq.getLocalOffset(): " + sq.getLocalOffset());
             this.curOffset += sq.getLocalOffset();
             console.log(" --- End of object Sequence. curOffset: " + this.curOffset);
@@ -551,7 +552,9 @@ medview.dicom.DataElement = function(dv, offset, littleEndian, explicit)
       console.log("Pixel data");
       if (this.vl == -1) {
         // http://www.dabsoft.ch/dicom/5/A.4/
-        throw new Error("Unsupported encapsulated pixel data.");
+//        throw new Error("Unsupported encapsulated pixel data.");
+        this.readEncapsulatedData(dv, this.curOffset, littleEndian, explicit);
+        
       }
       else {
         this.curOffset += this.vl; // ToDo: Pixel data will be read at the time of displaying the image
@@ -575,7 +578,18 @@ medview.dicom.DataElement = function(dv, offset, littleEndian, explicit)
   };
 
 
-  this.readString = function(dv, length)
+  this.read(dv, littleEndian, explicit);
+
+  
+//  console.log("tag: " + this.tag + ", group: " + this.group + ", element: " + this.element);
+
+
+
+};
+
+//  this.readString = function(dv, length)
+medview.dicom.DataElement.prototype.readString = function(dv, length)
+
   {
     var str = "";
     var endOffset = this.curOffset + length;
@@ -594,123 +608,133 @@ medview.dicom.DataElement = function(dv, offset, littleEndian, explicit)
   };
 
 
-  this.readField = function(dv, vr, vl, littleEndian)
-  // field types: http://www.dabsoft.ch/dicom/5/6.2/
+//  this.readField = function(dv, vr, vl, littleEndian)
+medview.dicom.DataElement.prototype.readField = function(dv, vr, vl, littleEndian)
+// field types: http://www.dabsoft.ch/dicom/5/6.2/
+{
+  // console.log("readField vr: " + vr + ", vl: " + vl);
+  var field = [];
+  var endOffset;
+  if (vr === "US" || vr === "UL")
   {
-    // console.log("readField vr: " + vr + ", vl: " + vl);
-    var field = [];
-    var endOffset;
-    if (vr === "US" || vr === "UL")
-    {
-      field.push(this.readNBytes(dv, vl, littleEndian));
+    field.push(this.readNBytes(dv, vl, littleEndian));
+  }
+  else if (vr === "OX" || vr === "OW" )
+  {
+    endOffset = this.curOffset + vl;
+    for(var i = this.curOffset; i < endOffset; i += 2) {
+      field.push(dv.getUint16(i));
     }
-    else if (vr === "OX" || vr === "OW" )
-    {
-      endOffset = this.curOffset + vl;
-      for(var i = this.curOffset; i < endOffset; i += 2) {
-        field.push(dv.getUint16(i));
-      }
-      // console.log("readField(), vr: " + vr);
+    // console.log("readField(), vr: " + vr);
 
 //      this.curOffset += 2*vl;
-      this.curOffset += vl;
+    this.curOffset += vl;
 
-    }
-    else if (vr === "FL")
-    {
-      field.push(dv.getFloat32(this.curOffset, littleEndian));
-      this.curOffset += vl;
-    }
-    else if (vr === "FD")
-    {
-      field.push(dv.getFloat64(this.curOffset, littleEndian));
-      this.curOffset += vl;
-    }
-    else if (vr === "SL")
-    {
-      field.push(dv.getInt32(this.curOffset, littleEndian));
-      this.curOffset += vl;
-    }
-    else if (vr === "SQ")
-    {
+  }
+  else if (vr === "FL")
+  {
+    field.push(dv.getFloat32(this.curOffset, littleEndian));
+    this.curOffset += vl;
+  }
+  else if (vr === "FD")
+  {
+    field.push(dv.getFloat64(this.curOffset, littleEndian));
+    this.curOffset += vl;
+  }
+  else if (vr === "SL")
+  {
+    field.push(dv.getInt32(this.curOffset, littleEndian));
+    this.curOffset += vl;
+  }
+  else if (vr === "SQ")
+  {
 // Sequences are loaded in a different way 
+  }
+  else if (vr === "OB" || vr === "N/A")
+  {
+    // ToDo:
+    // Values with a VR of OB shall be padded with a single trailing NULL byte value (00H) when necessary to achieve even length.
+    endOffset = this.curOffset + vl;
+    for(var i = this.curOffset; i < endOffset; i++) {
+      field.push(dv.getUint8(i));
     }
-    else if (vr === "OB" || vr === "N/A")
-    {
-      // ToDo:
-      // Values with a VR of OB shall be padded with a single trailing NULL byte value (00H) when necessary to achieve even length.
-      endOffset = this.curOffset + vl;
-      for(var i = this.curOffset; i < endOffset; i++) {
-        field.push(dv.getUint8(i));
-      }
 
-      console.log("readField(), vr: " + vr);
+    console.log("readField(), vr: " + vr);
 
-      this.curOffset += vl;
-    }
-    else
-    {
-      // Strings are also stored as an array after splitting them
+    this.curOffset += vl;
+  }
+  else
+  {
+    // Strings are also stored as an array after splitting them
 //      console.log("(" + this.group + "," + this.element + ") " + this.curOffset);
 //      console.log("readField vr: " + vr + ", vl: " + vl);
 
-      var str = this.readString(dv, vl).trim();
-      field = str.split("\\");
-      if (vr === "DS") {    
-        for (var i = 0; i < field.length; i++) {
-          field[i] = parseFloat(field[i]);
-        }
+    var str = this.readString(dv, vl).trim();
+    field = str.split("\\");
+    if (vr === "DS") {    
+      for (var i = 0; i < field.length; i++) {
+        field[i] = parseFloat(field[i]);
       }
     }
-    // console.log("field: " + field);
-    return field;
-  };
+  }
+  // console.log("field: " + field);
+  return field;
+};
 
 
-  this.readNBytes = function(dv, nBytes, littleEndian) {
-    var value;
-    
-    switch(nBytes)
-    {
-      case 1:
-        value = dv.getUint8(this.curOffset, littleEndian);
-        break;
-      case 2:
-        value = dv.getUint16(this.curOffset, littleEndian);
-        break;
-      case 4:
-        value = dv.getUint32(this.curOffset, littleEndian);
-        break;
-        
-      case 6: // 20130502: US MF, 6-byte sequences
-        value = dv.getUint32(this.curOffset, littleEndian);
-        break;
-      case 8:
-        value = dv.getFloat32(this.curOffset, littleEndian);
-        break;
-      default:
-        console.error("medview.dicom.DataElement.readNBytes(): ERROR");
-        throw new Error("Unsupported number size. nBytes: " + nBytes);
-    }
-    // console.log("readNBytes(): " + value);
-    this.curOffset += nBytes;
-    return value;
-  };
-
-
-  this.read(dv, littleEndian, explicit);
-
+medview.dicom.DataElement.prototype.readNBytes = function(dv, nBytes, littleEndian) {
+  var value;
   
-//  console.log("tag: " + this.tag + ", group: " + this.group + ", element: " + this.element);
-
-
-
+  switch(nBytes)
+  {
+    case 1:
+      value = dv.getUint8(this.curOffset, littleEndian);
+      break;
+    case 2:
+      value = dv.getUint16(this.curOffset, littleEndian);
+      break;
+    case 4:
+      value = dv.getUint32(this.curOffset, littleEndian);
+      break;
+      
+    case 6: // 20130502: US MF, 6-byte sequences
+      value = dv.getUint32(this.curOffset, littleEndian);
+      break;
+    case 8:
+      value = dv.getFloat32(this.curOffset, littleEndian);
+      break;
+    default:
+      console.error("medview.dicom.DataElement.readNBytes(): ERROR");
+      throw new Error("Unsupported number size. nBytes: " + nBytes);
+  }
+  // console.log("readNBytes(): " + value);
+  this.curOffset += nBytes;
+  return value;
 };
 
 medview.dicom.DataElement.prototype.getLocalOffset = function() {
 //  return this.localOffset;
   return this.curOffset - this.offset;
 };
+
+medview.dicom.DataElement.prototype.readEncapsulatedData = function(dv, offset, littleEndian, explicit)
+{
+// RLE encapsulated pixel data
+// http://www.dabsoft.ch/dicom/5/8.2/
+// http://www.dabsoft.ch/dicom/5/G/
+  console.log("+++ readEncapsulatedData()");
+  
+  console.log("offset: " + offset + " = 0x" + offset.toString(16));
+  var seqData = new medview.dicom.Sequence(dv, offset, 'OB', -1, littleEndian, explicit);
+  this.curOffset += seqData.getLocalOffset();
+//die;
+  console.log("--- end readEncapsulatedData()");
+
+
+
+
+}
+
 
 // *****************************************************************************
 
@@ -740,7 +764,7 @@ medview.dicom.SequenceItem.prototype.addDataElement = function(dataElement) {
 /**
  * @class Sequence
  */
-medview.dicom.Sequence = function(dv, offset, length, littleEndian, explicit)
+medview.dicom.Sequence = function(dv, offset, vr, length, littleEndian, explicit)
 {
   this.items = [];
 //  this.groups = {};
@@ -753,43 +777,84 @@ medview.dicom.Sequence = function(dv, offset, length, littleEndian, explicit)
   }
   console.log("Sequence vl: " + length);
 
-//  var count = 0;
+  if (vr === "SQ") {
 
-  var totalSeqLength = 0;
-  do {
+    // var count = 0;
 
-    var de = new medview.dicom.DataElement(dv, this.curOffset, littleEndian, explicit);
-    // console.log(de);
-    console.log("sequence");
-    this.curOffset += de.getLocalOffset();
-//  this.addDataElement(de);
-    // console.log("Data element offset: " + de.getLocalOffset());
+    var totalSeqLength = 0;
+    do {
 
-    var itemLength = de.vl;
-    totalSeqLength += de.getLocalOffset();
+      var de = new medview.dicom.DataElement(dv, this.curOffset, littleEndian, explicit);
+      // console.log(de);
+      console.log("sequence");
+      this.curOffset += de.getLocalOffset();
+  //  this.addDataElement(de);
+      // console.log("Data element offset: " + de.getLocalOffset());
 
-    if (de.group === 0xFFFE && de.element === 0xE000) {
+      var itemLength = de.vl;
+      totalSeqLength += de.getLocalOffset();
 
-        totalSeqLength += this.readItem(dv, this.curOffset, itemLength, littleEndian, explicit);
-    }
-    console.log("totalSeqLength: " + totalSeqLength);
+      if (de.group === 0xFFFE && de.element === 0xE000) {
 
-//    count++;
-//    var endSequence = count >= 3;
+          totalSeqLength += this.readItem(dv, this.curOffset, itemLength, littleEndian, explicit);
+      }
+      console.log("totalSeqLength: " + totalSeqLength);
 
-    var endSequence = (length == -1 && de.group === 0xFFFE && de.element === 0xE0DD) || (totalSeqLength == length) ;
-    console.log("endSequence: " + endSequence);
- 
-  } 
-  while (!endSequence);
+      // count++;
+  //    var endSequence = count >= 3;
+
+      var endSequence = (length == -1 && de.group === 0xFFFE && de.element === 0xE0DD) || (totalSeqLength == length) ;
+      console.log("endSequence: " + endSequence);
+   
+    } 
+    while (!endSequence);
+  }
+  else {
+    console.log("Sequence. vr: " + vr);
+    
+    var totalSeqLength_ = 0;
+    var count = 0;
+    do {
+
+      var de = new medview.dicom.DataElement(dv, this.curOffset, littleEndian, explicit);
+      console.log(count);
+      console.log("segment");
+      this.curOffset += de.getLocalOffset();
+  //  this.addDataElement(de);
+      // console.log("Data element offset: " + de.getLocalOffset());
+
+      var itemLength = de.vl;
+      totalSeqLength += de.getLocalOffset();
+
+      if (de.group === 0xFFFE && de.element === 0xE000) {
+
+          totalSeqLength_ += this.readSegment(dv, this.curOffset, itemLength, littleEndian, explicit);
+      }
+      console.log("totalSeqLength: " + totalSeqLength_);
+
+      count++;
+  //    var endSequence = count >= 3;
+
+      var endSequence = (length == -1 && de.group === 0xFFFE && de.element === 0xE0DD) || (totalSeqLength_ == length) ;
+      console.log("endSequence: " + endSequence);
+   
+    } 
+    while (!endSequence);
+    
+    
+    
+  }
+
 
 }
 
 medview.dicom.Sequence.prototype.readItem = function(dv, offset, itemLength, littleEndian, explicit) {
   var seqItem = new medview.dicom.SequenceItem();
   this.items.push(seqItem);
+  var count = 0;
   do {
     // dei: Every data element in the sequence item
+    // console.log("Sequence.readItem() - offset: 0x" + this.curOffset.toString(16));
     var dei = new medview.dicom.DataElement(dv, this.curOffset, littleEndian, explicit);
     // console.log("dei.getLocalOffset() " + dei.getLocalOffset());
     this.curOffset += dei.getLocalOffset();
@@ -799,15 +864,117 @@ medview.dicom.Sequence.prototype.readItem = function(dv, offset, itemLength, lit
     }
     
     var curItemLength = this.curOffset - offset;
+    count++;
 
+    // console.log("offset: 0x" + this.curOffset.toString(16));
     // Compare length if available.
-    var endItem = (itemLength == -1 && dei.group === 0xFFFE && dei.element === 0xE00D) || (curItemLength == itemLength);
+    var endItem = (itemLength == -1 && dei.group === 0xFFFE && dei.element === 0xE00D) || (curItemLength == itemLength) || count >= 70;
   }
   while (!endItem);
+  console.log("group: 0x" + dei.group.toString(16) + ", element: 0x" + dei.element.toString(16));
+  console.log("count: " + count);
   console.log("End of sequence item"); 
 
   return curItemLength;
 }
+
+medview.dicom.Sequence.prototype.readSegment = function(dv, offset, itemLength, littleEndian, explicit) {
+
+  var count = 0;
+  var offsetTable;
+  do {
+    // dei: Every data element in the sequence item
+    console.log("Sequence.readItem() - offset: 0x" + this.curOffset.toString(16));
+    console.log("itemLength: " + itemLength + ", 0x" + itemLength.toString(16));
+    if (count == 0) {
+      offsetTable = this.readOffsetTable(dv, this.curOffset, itemLength, littleEndian);
+    }
+    else {
+    
+    }
+//    var dei = new medview.dicom.DataElement(dv, this.curOffset, littleEndian, explicit);
+//    console.log(dei);
+    // console.log("dei.getLocalOffset() " + dei.getLocalOffset());
+//    this.curOffset += dei.getLocalOffset();
+    this.curOffset += itemLength;
+    // console.log(this.curOffset);
+/*
+    if (dei.group !== 0xFFFE) {
+      //seqItem.addDataElement(dei);
+    }
+*/    
+    var curItemLength = this.curOffset - offset;
+    count++;
+
+    console.log("offset: 0x" + this.curOffset.toString(16));
+    // Compare length if available.
+/*
+    var endItem = (itemLength == -1 && dei.group === 0xFFFE && dei.element === 0xE00D) || (curItemLength == itemLength) || count >= 70;
+    */
+    var endItem = (curItemLength == itemLength) || count >= 70;
+
+  }
+  while (!endItem);
+//  console.log("group: 0x" + dei.group.toString(16) + ", element: 0x" + dei.element.toString(16));
+  console.log("count: " + count);
+  console.log("End of segment"); 
+
+  return curItemLength;
+}
+
+/**
+ * Offset table for RLE encoded multiframe
+ */
+medview.dicom.Sequence.prototype.readOffsetTable = function(dv, offset, itemLength, littleEndian) {
+// http://www.dabsoft.ch/dicom/5/G/
+  console.log("readOffsetTable");
+
+  return false;
+}
+
+/**
+ * Reads RLE encoded segment
+ */
+medview.dicom.Sequence.prototype.readRLESegment = function(dv, offset, itemLength, littleEndian) {
+// http://www.dabsoft.ch/dicom/5/G/
+  console.log("readRLESegment");
+
+  var n = dv.getInt8(this.curOffset);
+  this.curOffset += 1;
+  if (n >= 0 && n <= 127) {
+  
+  }
+
+/*
+
+Loop until the number of output bytes equals the uncompressed segment size
+
+Read the next source byte into n
+
+If n> =0 and n <= 127 then
+
+output the next n+1 bytes literally
+
+Elseif n <= - 1 and n >= -127 then
+
+output the next byte -n+1 times
+
+Elseif n = - 128 then
+
+output nothing
+
+Endif
+
+Endloop
+
+
+
+*/
+
+
+  return false;
+}
+
 
 /*
 medview.dicom.Sequence.prototype.addDataElement = function(dataElement) {
