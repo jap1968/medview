@@ -138,198 +138,6 @@ medview.dicom.Instance = function(uid)
 //  this.ab; // ArrayBuffer (response)
   this.sampleBuf = {}; // Array buffer with the samples
 
-  this.setSeries = function(series) {
-    this.series = series;
-  }
-
-
-  /**
-   * Loads a Dicom instance (via Wado)
-   */
-  this.load = function(url, callback) {
-    var instance = this;
-    
-    var xhr = new XMLHttpRequest();
-
-    xhr.open('GET', url, true); // true: asynchronous | false: synchronous
-    xhr.responseType = 'arraybuffer';
-
-    var start = new Date().getTime(this);
-
-    // console.log("tIni: " + start);
-
-    // var len = Number($(xml).find("dicom>attr[tag=7FE00010]").attr('len'));
-
-    xhr.onload = function(e) {
-      // console.log(e);
-      if (this.status == 200) { // HTTP 200 : OK
-        var end = new Date().getTime();
-        var time = end - start;
-        // console.log("size: " + len + " bytes");
-        console.log("load time: " + time + "ms");
-//        instance.ab = this.response; // The instance points to the ArrayBuffer (response)
-        instance.parse(this.response);
-        instance.prepareSampleBuffer(this.response);
-//        instance.display(document.getElementById('canvas1'));
-        
-        callback(instance);
-        
-        // var speed = len * 8 / (time * 1000);
-        // console.log("speed (Mbps): " + speed + "Mbps");
-        
-        // Int8Array Int8Array(ArrayBuffer buffer, optional unsigned long byteOffset, optional unsigned long length);
-        
-      }
-    }
-
-    xhr.onerror = function(e) {
-      console.log("Error loading");
-    };
-
-    xhr.onprogress = function(e) {
-      // console.log("onprogress");
-      // console.log(e);
-      // console.log(e.loaded);
-    };
-
-    // Request invocation after definition
-    xhr.send(null);
-  };
-
-
-  /**
-   * Parses the raw buffer containing a Dicom instance
-   */
-  this.parse = function(buffer) {
-    // console.log('parse');
-    var strMagic;
-
-    try {
-      // Verification of "magic number" 
-      var magic = new Uint8Array(buffer, 128, 4);
-      // array to string: http://stackoverflow.com/a/9936506/176974
-      strMagic = String.fromCharCode.apply(null, magic);
-//      var strMagic = String.fromCharCode.apply(null, new Uint8Array(buffer, 128, 4)); // Solucion mas compacta
-    }
-    catch(err) {
-      strMagic = "";
-      console.error(err);    
-      console.error("Unable to read DICOM headers.");
-    }
-
-    console.log(strMagic);
-    if (strMagic === "DICM") {
-      // console.log("cmp: OK");
-      var mihOffset = 128 + 4;
-      var dv = new DataView(buffer);
-
-      mih = new medview.dicom.MetaInformationHeader(dv, mihOffset, this);
-      
-      var transferSyntaxUID = this.getField(0x0002, 0x0010)[0];
-      console.log(transferSyntaxUID);
-
-      var explicit;
-      var littleEndian;
-
-      // http://www.medicalconnections.co.uk/kb/Transfer_Syntax
-      switch (transferSyntaxUID) {
-        case "1.2.840.10008.1.2": // Implicit VR Little-endian
-          console.log("Implicit VR Little-endian");
-          explicit = false;
-          littleEndian = true;
-          break;
-          
-        case "1.2.840.10008.1.2.1": // Explicit VR Little-endian
-          console.log("Explicit VR Little-endian");
-          explicit = true;
-          littleEndian = true;
-          break;
-
-        case "1.2.840.10008.1.2.2": // Explicit VR Big-endian
-          console.log("Explicit VR Big-endian");
-          explicit = true;
-          littleEndian = false;
-          break;
-
-// 20130522: Test to read SQ elements (US MF ECO)
-        default:
-          console.log("Non supported TransferSyntaxUID");
-//          throw new Error("Unsupported TransferSyntaxUID");
-            explicit = true;
-            littleEndian = true;
-          break;
-      }
- 
- // Parse dicom data     
-      var curOffset = mihOffset + mih.getLocalOffset();
-          
-      console.log(dv.byteLength);
-
-      while (curOffset < dv.byteLength) {
-        var nextElement = new medview.dicom.DataElement(dv, curOffset, littleEndian, explicit);
-        curOffset += nextElement.getLocalOffset();
-        this.addDataElement(nextElement);
-//        console.log(nextElement);
-      }
-      console.log(this);
-
-    }
-
-  }; // this.parse
-
-  // http://dicomiseasy.blogspot.com.es/2012/08/chapter-12-pixel-data.html
-  this.prepareSampleBuffer = function(buffer) {
-    // ToDo: Test if is a supported class
-//    var sopClassUID = instance.getField(0x0008, 0x0016); // 20130429
-    var sopClassUID = this.getField(0x0008, 0x0016);
-
-    console.log("SOPClassUID: " + sopClassUID);
-    
-    var samplesPerPixel = this.getField(0x0028, 0x0002);
-
-    
-    var numFrames = this.getField(0x0028, 0x0008);
-    var rows = this.getField(0x0028, 0x0010);
-    var cols = this.getField(0x0028, 0x0011);
-
-    // http://www.dabsoft.ch/dicom/3/C.7.6.3/
-    var bitsAllocated = this.getField(0x0028, 0x0100);
-    var bitsStored = this.getField(0x0028, 0x0101);
-    var highBit = this.getField(0x0028, 0x0102);
-    var pixelRepresentation = this.getField(0x0028, 0x0103); // 0: unsigned | 1: signed
-
-    console.log("bitsAllocated: " + bitsAllocated + ", pixelRepresentation: " + pixelRepresentation);
-
-    var pixelBufferStart = this.getDataElement(0x7FE0, 0x0010).curOffset - this.getDataElement(0x7FE0, 0x0010).vl;
-    var pixelBufferLength = this.getDataElement(0x7FE0, 0x0010).vl;
-
-    console.log("pixelBufferStart: " + pixelBufferStart + ", pixelBufferLength: " + pixelBufferLength);
-
-    // sampleBuf;
-    if (bitsAllocated == 8) {
-      this.sampleBuf['length'] = pixelBufferLength;
-      if (pixelRepresentation == 0) {
-        this.sampleBuf['buffer'] = new Uint8Array(buffer, pixelBufferStart, pixelBufferLength);
-      }
-      else { // pixelRepresentation == 1
-        this.sampleBuf['buffer'] = new Int8Array(buffer, pixelBufferStart, pixelBufferLength);
-      }
-    }
-    else { // bitsAllocated == 16
-      this.sampleBuf['length'] = pixelBufferLength / 2;
-      if (pixelRepresentation == 0) {
-        this.sampleBuf['buffer'] = new Uint16Array(buffer, pixelBufferStart, this.sampleBuf['length']);
-      }
-      else { // pixelRepresentation == 1
-        this.sampleBuf['buffer'] = new Int16Array(buffer, pixelBufferStart, this.sampleBuf['length']);
-      }
-    }
-
-        
-        console.log("Rows: " + rows + ", cols: " + cols);    
-  
-  }
-
 /*  
   // 32-bit Pixel Manipulation ???
   // http://jsperf.com/canvas-pixel-manipulation/68
@@ -337,6 +145,203 @@ medview.dicom.Instance = function(uid)
 */
 
 };
+
+
+medview.dicom.Instance.prototype.setSeries = function(series) {
+  this.series = series;
+}
+
+
+/**
+ * Loads a Dicom instance (via Wado)
+ */
+medview.dicom.Instance.prototype.load = function(url, callback) {
+
+  var instance = this;
+  
+  var xhr = new XMLHttpRequest();
+
+  xhr.open('GET', url, true); // true: asynchronous | false: synchronous
+  xhr.responseType = 'arraybuffer';
+
+  var start = new Date().getTime(this);
+
+  // console.log("tIni: " + start);
+
+  // var len = Number($(xml).find("dicom>attr[tag=7FE00010]").attr('len'));
+
+  xhr.onload = function(e) {
+    // console.log(e);
+    if (this.status == 200) { // HTTP 200 : OK
+      var end = new Date().getTime();
+      var time = end - start;
+      // console.log("size: " + len + " bytes");
+      console.log("load time: " + time + "ms");
+//        instance.ab = this.response; // The instance points to the ArrayBuffer (response)
+      instance.parse(this.response);
+      instance.prepareSampleBuffer(this.response);
+//        instance.display(document.getElementById('canvas1'));
+      
+      callback(instance);
+      
+      // var speed = len * 8 / (time * 1000);
+      // console.log("speed (Mbps): " + speed + "Mbps");
+      
+      // Int8Array Int8Array(ArrayBuffer buffer, optional unsigned long byteOffset, optional unsigned long length);
+      
+    }
+  }
+
+  xhr.onerror = function(e) {
+    console.log("Error loading");
+  };
+
+  xhr.onprogress = function(e) {
+    // console.log("onprogress");
+    // console.log(e);
+    // console.log(e.loaded);
+  };
+
+  // Request invocation after definition
+  xhr.send(null);
+};
+
+
+/**
+ * Parses the raw buffer containing a Dicom instance
+ */
+medview.dicom.Instance.prototype.parse = function(buffer) {
+
+  // console.log('parse');
+  var strMagic;
+
+  try {
+    // Verification of "magic number" 
+    var magic = new Uint8Array(buffer, 128, 4);
+    // array to string: http://stackoverflow.com/a/9936506/176974
+    strMagic = String.fromCharCode.apply(null, magic);
+//      var strMagic = String.fromCharCode.apply(null, new Uint8Array(buffer, 128, 4)); // Solucion mas compacta
+  }
+  catch(err) {
+    strMagic = "";
+    console.error(err);    
+    console.error("Unable to read DICOM headers.");
+  }
+
+  console.log(strMagic);
+  if (strMagic === "DICM") {
+    // console.log("cmp: OK");
+    var mihOffset = 128 + 4;
+    var dv = new DataView(buffer);
+
+    mih = new medview.dicom.MetaInformationHeader(dv, mihOffset, this);
+    
+    var transferSyntaxUID = this.getField(0x0002, 0x0010)[0];
+    console.log(transferSyntaxUID);
+
+    var explicit;
+    var littleEndian;
+
+    // http://www.medicalconnections.co.uk/kb/Transfer_Syntax
+    switch (transferSyntaxUID) {
+      case "1.2.840.10008.1.2": // Implicit VR Little-endian
+        console.log("Implicit VR Little-endian");
+        explicit = false;
+        littleEndian = true;
+        break;
+        
+      case "1.2.840.10008.1.2.1": // Explicit VR Little-endian
+        console.log("Explicit VR Little-endian");
+        explicit = true;
+        littleEndian = true;
+        break;
+
+      case "1.2.840.10008.1.2.2": // Explicit VR Big-endian
+        console.log("Explicit VR Big-endian");
+        explicit = true;
+        littleEndian = false;
+        break;
+
+// 20130522: Test to read SQ elements (US MF ECO)
+      default:
+        console.log("Non supported TransferSyntaxUID");
+//          throw new Error("Unsupported TransferSyntaxUID");
+          explicit = true;
+          littleEndian = true;
+        break;
+    }
+
+// Parse dicom data     
+    var curOffset = mihOffset + mih.getLocalOffset();
+        
+    console.log(dv.byteLength);
+
+    while (curOffset < dv.byteLength) {
+      var nextElement = new medview.dicom.DataElement(dv, curOffset, littleEndian, explicit);
+      curOffset += nextElement.getLocalOffset();
+      this.addDataElement(nextElement);
+//        console.log(nextElement);
+    }
+    console.log(this);
+
+  }
+
+}; // parse()
+
+
+// http://dicomiseasy.blogspot.com.es/2012/08/chapter-12-pixel-data.html
+medview.dicom.Instance.prototype.prepareSampleBuffer = function(buffer) {
+
+  // ToDo: Test if is a supported class
+//    var sopClassUID = instance.getField(0x0008, 0x0016); // 20130429
+  var sopClassUID = this.getField(0x0008, 0x0016);
+
+  console.log("SOPClassUID: " + sopClassUID);
+  
+  var samplesPerPixel = this.getField(0x0028, 0x0002);
+
+  
+  var numFrames = this.getField(0x0028, 0x0008);
+  var rows = this.getField(0x0028, 0x0010);
+  var cols = this.getField(0x0028, 0x0011);
+
+  // http://www.dabsoft.ch/dicom/3/C.7.6.3/
+  var bitsAllocated = this.getField(0x0028, 0x0100);
+  var bitsStored = this.getField(0x0028, 0x0101);
+  var highBit = this.getField(0x0028, 0x0102);
+  var pixelRepresentation = this.getField(0x0028, 0x0103); // 0: unsigned | 1: signed
+
+  console.log("bitsAllocated: " + bitsAllocated + ", pixelRepresentation: " + pixelRepresentation);
+
+  var pixelBufferStart = this.getDataElement(0x7FE0, 0x0010).curOffset - this.getDataElement(0x7FE0, 0x0010).vl;
+  var pixelBufferLength = this.getDataElement(0x7FE0, 0x0010).vl;
+
+  console.log("pixelBufferStart: " + pixelBufferStart + ", pixelBufferLength: " + pixelBufferLength);
+
+  // sampleBuf;
+  if (bitsAllocated == 8) {
+    this.sampleBuf['length'] = pixelBufferLength;
+    if (pixelRepresentation == 0) {
+      this.sampleBuf['buffer'] = new Uint8Array(buffer, pixelBufferStart, pixelBufferLength);
+    }
+    else { // pixelRepresentation == 1
+      this.sampleBuf['buffer'] = new Int8Array(buffer, pixelBufferStart, pixelBufferLength);
+    }
+  }
+  else { // bitsAllocated == 16
+    this.sampleBuf['length'] = pixelBufferLength / 2;
+    if (pixelRepresentation == 0) {
+      this.sampleBuf['buffer'] = new Uint16Array(buffer, pixelBufferStart, this.sampleBuf['length']);
+    }
+    else { // pixelRepresentation == 1
+      this.sampleBuf['buffer'] = new Int16Array(buffer, pixelBufferStart, this.sampleBuf['length']);
+    }
+  }
+      
+  console.log("Rows: " + rows + ", cols: " + cols);    
+
+}
+
 
 
 /**
