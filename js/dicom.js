@@ -80,31 +80,30 @@ medview.dicom.Series = function(uid)
   // Instance objects are referenced two ways: By UID and by Instance number
   this.instances = {};
   this.sortedInstances = [];
-
-  this.setStudy = function(study) {
-    this.study = study;
-  }
-
-  this.addInstance = function(instanceUID) {
-    var instance = new medview.dicom.Instance(instanceUID);
-    instance.setSeries(this);
-    this.instances[instanceUID] = instance;
-    this.sortedInstances.push(instance);
-  }
-
-  this.getNumInstances = function() {
-//    var numInstances = this.seriesData["numInstances"];    
-    var numInstances = this.sortedInstances.length;
-    return numInstances;
-  }
-
-  this.getInstanceNum = function(pos) {
-    // console.log("getInstanceNum() pos: " + pos);
-    var instance = pos < this.sortedInstances.length ? this.sortedInstances[pos] : false;
-    return instance;
-  }
-
 };
+
+medview.dicom.Series.prototype.setStudy = function(study) {
+  this.study = study;
+}
+
+medview.dicom.Series.prototype.addInstance = function(instanceUID) {
+  var instance = new medview.dicom.Instance(instanceUID);
+  instance.setSeries(this);
+  this.instances[instanceUID] = instance;
+  this.sortedInstances.push(instance);
+}
+
+medview.dicom.Series.prototype.getNumInstances = function() {
+//    var numInstances = this.seriesData["numInstances"];    
+  var numInstances = this.sortedInstances.length;
+  return numInstances;
+}
+
+medview.dicom.Series.prototype.getInstanceNum = function(pos) {
+  // console.log("getInstanceNum() pos: " + pos);
+  var instance = pos < this.sortedInstances.length ? this.sortedInstances[pos] : false;
+  return instance;
+}
 
 /**
  * When a series is created, the information obtained through Q/R is stored
@@ -451,169 +450,165 @@ medview.dicom.DataElement = function(dv, offset, littleEndian, explicit)
   this.offset = offset; // Initial offset
   this.curOffset = offset; // Current offset. Updated when data is read from the DataViev (dv)
 
-
-  this.read = function(dv, littleEndian, explicit)
-  {
-
-  /**
-   * Reads a DataElement from the buffer
-   */
-
-    this.group = dv.getUint16(this.curOffset, littleEndian);
-    this.curOffset += 2;
-    this.element = dv.getUint16(this.curOffset, littleEndian);
-    this.curOffset += 2;
-    // console.log ("group: " + this.group + ", element: " + this.element);
-    
-
-    if (this.group == 0xfffe) { // Item / delimitation item / sequence delimitation item
-      if (this.element == 0xe000 || this.element == 0xe00d || this.element == 0xe0dd) {
-        console.log("");
-        console.log(" *** Sequence element: (" + this.group.toString(16) + ", " + this.element.toString(16) + ")");
-        console.log("curOffset: " + this.curOffset + " = 0x" + this.curOffset.toString(16));
-        explicit = false;
-      }
-    }
-   
-    // Explicit / Implicit VR: http://plastimatch.org/dicom_tutorial.html
-    if (explicit) {
-      // read VR string
-      this.vr = this.readString(dv, 2);
-
-      // console.log ("vr: " + this.vr);
-
-      // long representations 
-      if (this.vr === "OB" || this.vr === "OW" || this.vr === "OF" || this.vr === "SQ" || this.vr === "UN") {
-        // for VRs of OB, OW, OF, SQ and UN the 16 bits following the two character VR Field are reserved for use by later versions of the DICOM Standard.
-        // These reserved bytes shall be set to 0000H and shall not be used or decoded
-        var reserved = dv.getUint16(this.curOffset, littleEndian);
-        console.assert(reserved == 0x0000);
-        // console.log("vr: " + this.vr + ", reserved: " + reserved.toString(16));
-        this.curOffset += 2;
-        this.vl = dv.getUint32(this.curOffset, littleEndian);
-
-        if (this.vl === 0xffffffff ) {
-          console.log("vr: " + this.vr + ", vl: Undefined");
-          this.vl = -1; // Undefined
-        }
-
-        this.curOffset += 4;
-//        console.log ("Reading vl: Uint32: " + this.vl);
-
-
-        if (this.vr === "SQ") {
-          if (this.vl != 0) {
-            console.log(" +++ Create object Sequence. curOffset: " + this.curOffset);
-  console.log(this);
-            
-            var sq = new medview.dicom.Sequence(dv, this.curOffset, this.vr, this.vl, littleEndian, explicit);
-            // console.log("this.curOffset: " + this.curOffset + ", sq.getLocalOffset(): " + sq.getLocalOffset());
-            this.curOffset += sq.getLocalOffset();
-            console.log(" --- End of object Sequence. curOffset: " + this.curOffset);
-            
-            this.field = sq;
-          }
-          console.log(this);
-          
-        }
-
-      }
-      // short representation
-      else {
-        this.vl = dv.getUint16(this.curOffset, littleEndian);
-        this.curOffset += 2;
-//        console.log ("Reading vl: Uint16: " + this.vl);
-      }
-
-    }
-    else {
-      // Sequences:
-      // http://www.dclunie.com/medical-image-faq/html/part6.html
-    
-      // Implicit VR: 4 bytes for VL
-      this.vr = "";
-      this.vl = dv.getUint32(this.curOffset, littleEndian);
-      this.curOffset += 4;
-      console.log ("Implicit VR: (" + this.group.toString(16) + ", " + this.element.toString(16) + "), vl: " + this.vl);
-
-      if( this.vl === 0xffffffff ) {
-          this.vl = -1; // Undefined
-      }
-    }
-//    console.log ("vl: " + this.vl);
-
-    
-/*    
-    if (this.element == 0x0000) {
-      // this field indicates group length
-      console.log('element 0x0000: group length');
-    }
-*/
-    
-      // Read data field
-//      this.field = this.readField(dv, this.offset + this.localOffset, this.vr, this.vl, littleEndian);
-
-    if (this.group == 0x7fe0 && this.element == 0x0010) { // Pixel data
-      console.log("Pixel data");
-      if (this.vl == -1) {
-        // http://www.dabsoft.ch/dicom/5/A.4/
-//        throw new Error("Unsupported encapsulated pixel data.");
-        this.readEncapsulatedData(dv, this.curOffset, littleEndian, explicit);
-        
-      }
-      else {
-        this.curOffset += this.vl; // ToDo: Pixel data will be read at the time of displaying the image
-      }
-    }
-    else if (this.group == 0xfffe) {
-      // Sequence item
-      // console.log("Do not read values for sequence (0xFFFE) element markers");
-      console.log("this.curOffset: " + this.curOffset);
-    }
-    else {
-      // *** ToDo: Change this: Reading of SQ also here!
-      if (this.vr !== "SQ") {
-        // console.log("reading field, vr: " + this.vr);
-        this.field = this.readField(dv, this.vr, this.vl, littleEndian);
-      }
-    }
-//      console.log('field value: ' + this.field);
-
-    
-  };
-
-
   this.read(dv, littleEndian, explicit);
-
   
 //  console.log("tag: " + this.tag + ", group: " + this.group + ", element: " + this.element);
 
+};
 
+
+
+//  this.read = function(dv, littleEndian, explicit)
+medview.dicom.DataElement.prototype.read = function(dv, littleEndian, explicit)
+{
+
+/**
+ * Reads a DataElement from the buffer
+ */
+
+  this.group = dv.getUint16(this.curOffset, littleEndian);
+  this.curOffset += 2;
+  this.element = dv.getUint16(this.curOffset, littleEndian);
+  this.curOffset += 2;
+  // console.log ("group: " + this.group + ", element: " + this.element);
+  
+
+  if (this.group == 0xfffe) { // Item / delimitation item / sequence delimitation item
+    if (this.element == 0xe000 || this.element == 0xe00d || this.element == 0xe0dd) {
+      console.log("");
+      console.log(" *** Sequence element: (" + this.group.toString(16) + ", " + this.element.toString(16) + ")");
+      console.log("curOffset: " + this.curOffset + " = 0x" + this.curOffset.toString(16));
+      explicit = false;
+    }
+  }
+ 
+  // Explicit / Implicit VR: http://plastimatch.org/dicom_tutorial.html
+  if (explicit) {
+    // read VR string
+    this.vr = this.readString(dv, 2);
+
+    // console.log ("vr: " + this.vr);
+
+    // long representations 
+    if (this.vr === "OB" || this.vr === "OW" || this.vr === "OF" || this.vr === "SQ" || this.vr === "UN") {
+      // for VRs of OB, OW, OF, SQ and UN the 16 bits following the two character VR Field are reserved for use by later versions of the DICOM Standard.
+      // These reserved bytes shall be set to 0000H and shall not be used or decoded
+      var reserved = dv.getUint16(this.curOffset, littleEndian);
+      console.assert(reserved == 0x0000);
+      // console.log("vr: " + this.vr + ", reserved: " + reserved.toString(16));
+      this.curOffset += 2;
+      this.vl = dv.getUint32(this.curOffset, littleEndian);
+
+      if (this.vl === 0xffffffff ) {
+        console.log("vr: " + this.vr + ", vl: Undefined");
+        this.vl = -1; // Undefined
+      }
+
+      this.curOffset += 4;
+//        console.log ("Reading vl: Uint32: " + this.vl);
+
+
+      if (this.vr === "SQ") {
+        if (this.vl != 0) {
+          console.log(" +++ Create object Sequence. curOffset: " + this.curOffset);
+console.log(this);
+          
+          var sq = new medview.dicom.Sequence(dv, this.curOffset, this.vr, this.vl, littleEndian, explicit);
+          // console.log("this.curOffset: " + this.curOffset + ", sq.getLocalOffset(): " + sq.getLocalOffset());
+          this.curOffset += sq.getLocalOffset();
+          console.log(" --- End of object Sequence. curOffset: " + this.curOffset);
+          
+          this.field = sq;
+        }
+        console.log(this);
+        
+      }
+
+    }
+    // short representation
+    else {
+      this.vl = dv.getUint16(this.curOffset, littleEndian);
+      this.curOffset += 2;
+//        console.log ("Reading vl: Uint16: " + this.vl);
+    }
+
+  }
+  else {
+    // Sequences:
+    // http://www.dclunie.com/medical-image-faq/html/part6.html
+  
+    // Implicit VR: 4 bytes for VL
+    this.vr = "";
+    this.vl = dv.getUint32(this.curOffset, littleEndian);
+    this.curOffset += 4;
+    console.log ("Implicit VR: (" + this.group.toString(16) + ", " + this.element.toString(16) + "), vl: " + this.vl);
+
+    if( this.vl === 0xffffffff ) {
+        this.vl = -1; // Undefined
+    }
+  }
+//    console.log ("vl: " + this.vl);
+
+  
+/*    
+  if (this.element == 0x0000) {
+    // this field indicates group length
+    console.log('element 0x0000: group length');
+  }
+*/
+  
+    // Read data field
+//      this.field = this.readField(dv, this.offset + this.localOffset, this.vr, this.vl, littleEndian);
+
+  if (this.group == 0x7fe0 && this.element == 0x0010) { // Pixel data
+    console.log("Pixel data");
+    if (this.vl == -1) {
+      // http://www.dabsoft.ch/dicom/5/A.4/
+//        throw new Error("Unsupported encapsulated pixel data.");
+      this.readEncapsulatedData(dv, this.curOffset, littleEndian, explicit);
+      
+    }
+    else {
+      this.curOffset += this.vl; // ToDo: Pixel data will be read at the time of displaying the image
+    }
+  }
+  else if (this.group == 0xfffe) {
+    // Sequence item
+    // console.log("Do not read values for sequence (0xFFFE) element markers");
+    console.log("this.curOffset: " + this.curOffset);
+  }
+  else {
+    // *** ToDo: Change this: Reading of SQ also here!
+    if (this.vr !== "SQ") {
+      // console.log("reading field, vr: " + this.vr);
+      this.field = this.readField(dv, this.vr, this.vl, littleEndian);
+    }
+  }
+//      console.log('field value: ' + this.field);
 
 };
 
-//  this.readString = function(dv, length)
+
+
 medview.dicom.DataElement.prototype.readString = function(dv, length)
+{
+  var str = "";
+  var endOffset = this.curOffset + length;
 
-  {
-    var str = "";
-    var endOffset = this.curOffset + length;
-
-    for(var i = this.curOffset; i < endOffset; i++) {
-      str += String.fromCharCode(dv.getUint8(i));
-    }
-    
-    // Values with a VR of UI are padded with a single trailing NULL (00H) character when necessary to achieve even length.
-    if (this.vr === "UI" && str[str.length - 1] === String.fromCharCode(0x00)) {
-      str = str.substring(0, str.length-1); 
-    }
-    
-    this.curOffset += length;
-    return str;
-  };
+  for(var i = this.curOffset; i < endOffset; i++) {
+    str += String.fromCharCode(dv.getUint8(i));
+  }
+  
+  // Values with a VR of UI are padded with a single trailing NULL (00H) character when necessary to achieve even length.
+  if (this.vr === "UI" && str[str.length - 1] === String.fromCharCode(0x00)) {
+    str = str.substring(0, str.length-1); 
+  }
+  
+  this.curOffset += length;
+  return str;
+};
 
 
-//  this.readField = function(dv, vr, vl, littleEndian)
 medview.dicom.DataElement.prototype.readField = function(dv, vr, vl, littleEndian)
 // field types: http://www.dabsoft.ch/dicom/5/6.2/
 {
