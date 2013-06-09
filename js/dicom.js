@@ -40,27 +40,22 @@ medview.dicom.Study = function(uid)
 {
   this.uid = uid;
   console.log("Study. UID: " + this.uid);
-
+//  this.seriesUID = null; // Selected series . Change this to gateway !!!
   this.series = {};
-//  this.seriesUID; // Selected series . NO, en gateway !!!
-
-  this.addSeries = function(seriesData) {
-    var seriesUID = seriesData["seriesUID"];
-    var series = new medview.dicom.Series(seriesUID);
-    series.setSeriesData(seriesData);
-    series.setStudy(this);
-    this.series[seriesUID] = series;
-  }
-
-  this.selectSeries = function(seriesUID) {
-    this.seriesUID = seriesUID;
-  }
-
-
 };
 
+medview.dicom.Study.prototype.addSeries = function(seriesData) {
+  var seriesUID = seriesData["seriesUID"];
+  var series = new medview.dicom.Series(seriesUID);
+  series.setSeriesData(seriesData);
+  series.setStudy(this);
+  this.series[seriesUID] = series;
+}
+
 /*
+//  this.selectSeries = function(seriesUID) {
 medview.dicom.Study.prototype.selectSeries = function(seriesUID) {
+  console.log("Study.selectSeries()");
   this.seriesUID = seriesUID;
 }
 */

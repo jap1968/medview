@@ -574,17 +574,16 @@ medview.html.ImageView = function(container, numLayers, width, height, top, left
     this.imgLayers[i] = new medview.html.ImageLayer(this.iw, width, height, i);
   }
 
-
-  this.showLoading = function() {
-    console.log("ImageView.showLoading()");
-    this.lLayer.layer.css({'display': 'block'});
-  }
-
-  this.hideLoading = function() {
-    this.lLayer.layer.css({'display': 'none'});
-  }
-
 };
+
+medview.html.ImageView.prototype.showLoading = function() {
+  console.log("ImageView.showLoading()");
+  this.lLayer.layer.css({'display': 'block'});
+}
+
+medview.html.ImageView.prototype.hideLoading = function() {
+  this.lLayer.layer.css({'display': 'none'});
+}
 
 // *************************************
 
