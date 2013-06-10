@@ -493,16 +493,21 @@ medview.dicom.DataElement.prototype.read = function(dv, littleEndian, explicit)
       // console.log("vr: " + this.vr + ", reserved: " + reserved.toString(16));
       this.curOffset += 2;
       this.vl = dv.getUint32(this.curOffset, littleEndian);
+      this.curOffset += 4;
 
       if (this.vl === 0xffffffff ) {
         console.log("vr: " + this.vr + ", vl: Undefined");
         this.vl = -1; // Undefined
       }
 
-      this.curOffset += 4;
 //        console.log ("Reading vl: Uint32: " + this.vl);
 
-
+/*
+// 20130610: Read properly VR = "UN"
+      if (this.vr === "UN" && this.vl != -1) {
+        this.curOffset += this.vl;
+      }
+*/
       if (this.vr === "SQ") {
         if (this.vl != 0) {
           console.log(" +++ Create object Sequence. curOffset: " + this.curOffset);
