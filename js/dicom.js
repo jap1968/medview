@@ -614,6 +614,17 @@ medview.dicom.DataElement.prototype.readField = function(dv, vr, vl, littleEndia
   {
     field.push(this.readNBytes(dv, vl, littleEndian));
   }
+  else if (vr === "AT" )
+  {
+    // vl: fixed, 4 bytes
+    console.assert(vl = 4);
+    var value1 = dv.getUint16(this.curOffset, littleEndian);
+    this.curOffset += 2
+    var value2 = dv.getUint16(this.curOffset, littleEndian);
+    this.curOffset += 2;
+    var tag = [value1, value2];
+    field.push(tag);
+  }
   else if (vr === "OX" || vr === "OW" )
   {
     endOffset = this.curOffset + vl;
