@@ -761,6 +761,7 @@ medview.html.ImageView.prototype.prepareHidden = function() {
   // http://stackoverflow.com/questions/8756096/window-width-and-center-calculation-of-dicom-image/8765366#8765366
 */
 
+  // Rescale: Modality LUT. Only for grayscale images.
   var rescaleIntercept = this.dicomInstance.getField(0x0028, 0x1052); // 0040,4178
   var rescaleSlope = this.dicomInstance.getField(0x0028, 0x1053); // 0040,4179
   
@@ -798,7 +799,7 @@ medview.html.ImageView.prototype.prepareHidden = function() {
   var instanceIV = this; // Instance of this ImageView
   
   // samplesPerPixel (0028,0002) = 3
-  var populateImageDataRGB = function (lut) {
+  var populateImageDataRGB = function () {
 
     // Planar Configuration
     // http://www.medicalconnections.co.uk/kb/Planar_configuration
@@ -828,22 +829,55 @@ medview.html.ImageView.prototype.prepareHidden = function() {
       for (var x = 0; x < canvasWidth; x++) {
         // value = buffer[pos] * rescaleSlope + rescaleIntercept;
         // value = buffer[pos];
+/*        
         valueR = lut(buffer[posR]);
         valueG = lut(buffer[posG]);
         valueB = lut(buffer[posB]);
+*/        
         posR += stepPos;
         posG += stepPos;
         posB += stepPos;
 
+/*
         imageData.data[i]   = valueR; // R
         imageData.data[i+1] = valueG; // G
         imageData.data[i+2] = valueB; // B
+*/      
+        imageData.data[i]   = buffer[posR]; // R
+        imageData.data[i+1] = buffer[posG]; // G
+        imageData.data[i+2] = buffer[posB]; // B
+  
         imageData.data[i+3] = 255;   // A
+        
 
         i += 4;
       }
     }
   }
+
+  // 20130610: Adding support for PALETTE COLOR (ToDo)
+  var populateImageDataPalette = function (lut) {
+    var value;
+    var i = 0;
+    var pos = 0;
+    
+    for (var y = 0; y < canvasHeight; y++) {
+      for (var x = 0; x < canvasWidth; x++) {
+        // value = buffer[pos] * rescaleSlope + rescaleIntercept;
+        // value = buffer[pos];
+        value = lut(buffer[pos]);
+
+        imageData.data[i]   = value["r"]; // R
+        imageData.data[i+1] = value["g"]; // G
+        imageData.data[i+2] = value["b"]; // B
+        imageData.data[i+3] = value["a"]; // A
+
+        i += 4;
+        pos++;
+      }
+    }
+  }
+ 
 
   // https://www.dabsoft.ch/dicom/3/C.11.2.1.2/
   var wc, ww;
@@ -922,19 +956,28 @@ medview.html.ImageView.prototype.prepareHidden = function() {
       break;
 
     case "RGB":
-
-      var lut;
-      if (rescale) {
-        rescaleSlope = rescaleSlope[0];
-        rescaleIntercept = rescaleIntercept[0];
-        console.log("Rescale for RGB images ???");
-        lut = function(value) {return rescaleSlope * value + rescaleIntercept;}
-      }
-      else {
-        lut = function(value) {return value}      
-      }
-      populateImageDataRGB(lut);
+      populateImageDataRGB();
       break;
+      
+    case "PALETTE COLOR":
+      console.log("ImageView.prepareHidden() -> Palette color");
+      var rPalette = this.dicomInstance.getField(0x0028, 0x1201); // 0040,4609
+      var gPalette = this.dicomInstance.getField(0x0028, 0x1202); // 0040,4610
+      var bPalette = this.dicomInstance.getField(0x0028, 0x1203); // 0040,4611
+
+      lut = function(value) {        
+        var pixel = {
+          "r": rPalette[value],
+          "g": gPalette[value],
+          "b": bPalette[value],
+          "a": 255
+        };         
+        return pixel;
+      }
+
+      populateImageDataPalette(lut); // display time, assoc object: 15 ~ 17ms, array: 24
+      break;
+
       
     default:
       break;
