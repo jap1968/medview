@@ -609,16 +609,50 @@ medview.dicom.DataElement.prototype.readString = function(dv, length)
 };
 
 
+medview.dicom.DataElement.prototype.readBasicType = function(dv, getType, typeSize, vl, littleEndian)
+{
+  var field = [];
+  console.assert(vl % typeSize == 0);
+  var multiplicity = vl / typeSize;
+  for(var i = 0; i < multiplicity; i++) {
+    field.push(getType.call(dv, this.curOffset, littleEndian));
+    this.curOffset += typeSize;
+  }
+  return field;
+}
+
 medview.dicom.DataElement.prototype.readField = function(dv, vr, vl, littleEndian)
 // field types: http://www.dabsoft.ch/dicom/5/6.2/
 {
-  // console.log("readField vr: " + vr + ", vl: " + vl);
+//  console.log("readField vr: " + vr + ", vl: " + vl);
   var field = [];
   var endOffset;
-  if (vr === "US" || vr === "UL")
+  var multiplicity;
+  if (vr === "US")
   {
-    field.push(this.readNBytes(dv, vl, littleEndian));
+    field = this.readBasicType(dv, DataView.prototype.getUint16, 2, vl, littleEndian);
   }
+  else if (vr === "UL")
+  {
+    field = this.readBasicType(dv, DataView.prototype.getUint32, 4, vl, littleEndian);
+  }
+  else if (vr === "SS")
+  {
+    field = this.readBasicType(dv, DataView.prototype.getInt16, 2, vl, littleEndian);
+  }
+  else if (vr === "SL")
+  {
+    field = this.readBasicType(dv, DataView.prototype.getInt32, 4, vl, littleEndian);
+  }
+  else if (vr === "FL")
+  {
+    field = this.readBasicType(dv, DataView.prototype.getFloat32, 4, vl, littleEndian);
+  }
+  else if (vr === "FD")
+  {
+    field = this.readBasicType(dv, DataView.prototype.getFloat64, 8, vl, littleEndian);
+  }
+
   else if (vr === "AT" )
   {
     // vl: fixed, 4 bytes
@@ -641,21 +675,6 @@ medview.dicom.DataElement.prototype.readField = function(dv, vr, vl, littleEndia
 //      this.curOffset += 2*vl;
     this.curOffset += vl;
 
-  }
-  else if (vr === "FL")
-  {
-    field.push(dv.getFloat32(this.curOffset, littleEndian));
-    this.curOffset += vl;
-  }
-  else if (vr === "FD")
-  {
-    field.push(dv.getFloat64(this.curOffset, littleEndian));
-    this.curOffset += vl;
-  }
-  else if (vr === "SL")
-  {
-    field.push(dv.getInt32(this.curOffset, littleEndian));
-    this.curOffset += vl;
   }
   else if (vr === "SQ")
   {
@@ -692,7 +711,7 @@ medview.dicom.DataElement.prototype.readField = function(dv, vr, vl, littleEndia
   return field;
 };
 
-
+/*
 medview.dicom.DataElement.prototype.readNBytes = function(dv, nBytes, littleEndian) {
   var value;
   
@@ -722,6 +741,7 @@ medview.dicom.DataElement.prototype.readNBytes = function(dv, nBytes, littleEndi
   this.curOffset += nBytes;
   return value;
 };
+*/
 
 medview.dicom.DataElement.prototype.getLocalOffset = function() {
 //  return this.localOffset;
