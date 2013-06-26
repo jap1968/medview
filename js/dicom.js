@@ -125,12 +125,17 @@ medview.dicom.Instance = function(uid)
   // SOP Instance UID
   this.uid = uid;
   this.series; // Reference to the series object
-  this.loaded = false;
+  this.loaded = false; // Indicates whether it has already been loaded
+  this.hidden = false; // Indicates whether hidden canvas has already been computed
   
   var mih; // medview.dicom.MetaInformationHeader
   this.groups = {};
 //  this.ab; // ArrayBuffer (response)
-  this.sampleBuf = {}; // Array buffer with the samples
+
+//  this.sampleBuf = {}; // Array buffer with the samples
+  
+  // 20130612: Test for multiframe images
+  this.frameBuf = [];
 
 /*  
   // 32-bit Pixel Manipulation ???
@@ -148,8 +153,10 @@ medview.dicom.Instance.prototype.setSeries = function(series) {
 
 /**
  * Loads a Dicom instance (via Wado)
+ * iv: ImageView
+ * This method should go on html or gateway package
  */
-medview.dicom.Instance.prototype.load = function(url, callback) {
+medview.dicom.Instance.prototype.load = function(url, iv, callback) {
 
   var instance = this;
   
@@ -191,8 +198,17 @@ medview.dicom.Instance.prototype.load = function(url, callback) {
   };
 
   xhr.onprogress = function(e) {
-    // console.log("onprogress");
-    // console.log(e);
+//    console.log("onprogress");
+//    console.log(e);
+
+    if (e.lengthComputable) {
+      // e.position, e.length
+      // e.total, e.totalSize
+      var percent = Math.floor(100 * e.loaded / e.total);
+      iv.lLayer.setTxt("Loading: " + percent + "%");
+ //     console.log(percent);
+    }
+    
     // console.log(e.loaded);
   };
 
@@ -292,10 +308,12 @@ medview.dicom.Instance.prototype.prepareSampleBuffer = function(buffer) {
 
   console.log("SOPClassUID: " + sopClassUID);
   
-  var samplesPerPixel = this.getField(0x0028, 0x0002);
+  var samplesPerPixel = this.getField(0x0028, 0x0002)[0];
 
   
-  var numFrames = this.getField(0x0028, 0x0008);
+  var numFrames = this.getField(0x0028, 0x0008)[0];
+  numFrames = numFrames ? numFrames : 1;
+  console.log("numFrames: " + numFrames);
   var rows = this.getField(0x0028, 0x0010);
   var cols = this.getField(0x0028, 0x0011);
 
@@ -307,30 +325,64 @@ medview.dicom.Instance.prototype.prepareSampleBuffer = function(buffer) {
 
   console.log("bitsAllocated: " + bitsAllocated + ", pixelRepresentation: " + pixelRepresentation);
 
-  var pixelBufferStart = this.getDataElement(0x7FE0, 0x0010).curOffset - this.getDataElement(0x7FE0, 0x0010).vl;
-  var pixelBufferLength = this.getDataElement(0x7FE0, 0x0010).vl;
-
-  console.log("pixelBufferStart: " + pixelBufferStart + ", pixelBufferLength: " + pixelBufferLength);
-
-  // sampleBuf;
-  if (bitsAllocated == 8) {
-    this.sampleBuf['length'] = pixelBufferLength;
-    if (pixelRepresentation == 0) {
-      this.sampleBuf['buffer'] = new Uint8Array(buffer, pixelBufferStart, pixelBufferLength);
-    }
-    else { // pixelRepresentation == 1
-      this.sampleBuf['buffer'] = new Int8Array(buffer, pixelBufferStart, pixelBufferLength);
-    }
+  var pixelBufferStart;
+//  var pixelBufferLength = this.getDataElement(0x7FE0, 0x0010).vl;
+  
+  if (this.getDataElement(0x7FE0, 0x0010).vl == 0xFFFFFFFF) {
+    pixelBufferStart = this.getDataElement(0x7FE0, 0x0010).offset + 12; // ToDo Change this (12) !!!
   }
-  else { // bitsAllocated == 16
-    this.sampleBuf['length'] = pixelBufferLength / 2;
-    if (pixelRepresentation == 0) {
-      this.sampleBuf['buffer'] = new Uint16Array(buffer, pixelBufferStart, this.sampleBuf['length']);
-    }
-    else { // pixelRepresentation == 1
-      this.sampleBuf['buffer'] = new Int16Array(buffer, pixelBufferStart, this.sampleBuf['length']);
-    }
+  else {
+    pixelBufferStart = this.getDataElement(0x7FE0, 0x0010).curOffset - this.getDataElement(0x7FE0, 0x0010).vl;
   }
+
+
+/*
+if (true || pixelBufferLength == -1) {
+
+}
+*/
+
+
+//  pixelBufferStart = this.getDataElement(0x7FE0, 0x0010).offset + 12; // ToDo Change this !!!
+  var bytesPerPixel = bitsAllocated / 8;
+  var pixelBufferFrameSize = rows * cols * samplesPerPixel;
+  var pixelBufferFrameBytes = pixelBufferFrameSize * bytesPerPixel;
+//  pixelBufferLength = pixelBufferLength != -1 ? pixelBufferLength : numFrames * pixelBufferFrameLength;
+//  pixelBufferLength = 451200; // rows: 564, cols: 800
+  console.log("pixelBufferStart: " + pixelBufferStart + ", pixelBufferFrameBytes: " + pixelBufferFrameBytes);
+
+  // 20130612: MultiframeBuffer
+  console.log("numFrames: " + numFrames);
+//  console.log("pBL: " + pixelBufferLength);
+  console.log("bitsAllocated: " + bitsAllocated);
+
+  for (var i = 0; i < numFrames; i++) { // numFrames[0] <-> 1
+//    console.log("i: " + i);
+  
+
+    if (bitsAllocated == 8) {
+//      this.sampleBuf['length'] = pixelBufferLength;
+      if (pixelRepresentation == 0) {
+        this.frameBuf[i] = new Uint8Array(buffer, pixelBufferStart, pixelBufferFrameSize);
+      }
+      else { // pixelRepresentation == 1
+        this.frameBuf[i] = new Int8Array(buffer, pixelBufferStart, pixelBufferFrameSize);
+      }
+    }
+    else { // bitsAllocated == 16
+//      this.sampleBuf['length'] = pixelBufferLength / 2;
+      if (pixelRepresentation == 0) {
+        this.frameBuf[i] = new Uint16Array(buffer, pixelBufferStart, pixelBufferFrameSize); // this.sampleBuf['length']
+      }
+      else { // pixelRepresentation == 1
+        this.frameBuf[i] = new Int16Array(buffer, pixelBufferStart, pixelBufferFrameSize); // this.sampleBuf['length']
+      }
+    }
+    pixelBufferStart += pixelBufferFrameBytes;
+//    console.log("done i: " + i + ", pixelBufferStart: " + pixelBufferStart);
+  } // for
+
+
       
   console.log("Rows: " + rows + ", cols: " + cols);    
 
@@ -384,6 +436,9 @@ medview.dicom.Instance.prototype.setLoaded = function(statusLoaded) {
   this.loaded = statusLoaded;
 };
 
+medview.dicom.Instance.prototype.setHidden = function(statusHidden) {
+  this.hidden = statusHidden;
+};
 
 // *****************************************************************************
 
@@ -707,6 +762,11 @@ medview.dicom.DataElement.prototype.readField = function(dv, vr, vl, littleEndia
     if (vr === "DS") {    
       for (var i = 0; i < field.length; i++) {
         field[i] = parseFloat(field[i]);
+      }
+    }
+    else if (vr === "IS") {
+      for (var i = 0; i < field.length; i++) {
+        field[i] = parseInt(field[i]);
       }
     }
   }

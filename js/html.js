@@ -45,11 +45,13 @@ medview.html.CFindForm = function(container, dgInstance)
 
   this.dgInstance = dgInstance;
 
+
   var top = 0;
   var left = 0;
-  var width = 300;
+/*
+  var width = 600;
   var height = 200;
-  
+*/  
   // main panel
   
   var fg = $('<div />');
@@ -58,18 +60,21 @@ medview.html.CFindForm = function(container, dgInstance)
   fg.css({
     'top': top + 'px',
     'left': left + 'px',
-    'width': '800px',
-    'height': '900px',
+    'width': '100%',
+    'height': '400px',
     'position': 'relative',
     'background-color': 'rgb(127,191,191)',
-    'float': 'left',
     'z-index': 10,
     'opacity': 0.9
   }); // <!-- filter:alpha(opacity=50); -->
 
+
+
+
+
 // ToDo: Clean html elements: Remove jQuery / Bootstrap tags
 
-  var formHtml = '<div data-role="fieldcontain">' +
+  var formHtml = '<div style="display:inline;">' +
     '<label for="patId">Patient id: </label>' + 
     '<input type="search" name="patientId" id="patId" value="" />' +
     '</div>' +
@@ -89,17 +94,20 @@ medview.html.CFindForm = function(container, dgInstance)
   fgTab.attr('id', 'cFindTab');
   fgTab.css({
     'position': 'relative',
-    'height': '150px',
-    'width': '50px',
+    'height': '50px',
+    'width': '150px',
+    'left': '50px',    
     'background': 'red',
-    'float': 'left',
-    'margin-top': '100px',
     'background-color': 'rgb(127,191,191)',    
     'z-index': 10,
     'opacity': 0.9
    
   }); // <!-- filter:alpha(opacity=50); -->
   
+
+
+
+
   
   container.append(fg);
   container.append(fgTab);
@@ -107,7 +115,9 @@ medview.html.CFindForm = function(container, dgInstance)
 $('#cFindTab').click(function()
 {
     console.log("click tab");
-    $("#cFindArea").animate({width:'toggle'},200);       
+//    $("#cFindArea").animate({width:'toggle'},200);       
+    $("#cFindArea").animate({height:'toggle'},200);       
+
 });
 
   this.enable();
@@ -218,25 +228,28 @@ medview.html.AdjustForm = function(container, dgInstance)
     'bottom': '0',
     'left': '0',
     'width': '100%',
-    'height': '120px',
+    'height': '160px',
     'background-color': 'rgb(191,127,191)',
     'z-index': 5,
     'opacity': 0.9
   }); // <!-- filter:alpha(opacity=50); -->
   //     'float': 'left',
 
+// Change: this in ImageView
+  this.numFrame = 0;
+
   var formHtml = '<div>' +
     '<label for="adjWC">WC: </label>' + 
-    '<input type="text" id="adjWC" value="" />' +
+    '<input type="text" id="adjWC" size="5" value="" />' +
     '<label for="adjWW">WW: </label>' + 
-    '<input type="text" id="adjWW" value="" />' +        
+    '<input type="text" id="adjWW" size="5" value="" />' +        
     '<input id="adjWWB" type="button" value="Adjust Level" /></div>';
 
   var formHtmlGrid = '<div>' +
     '<label for="gridRows">Rows: </label>' + 
-    '<input type="text" id="gridRows" value="" />' +
+    '<input type="text" id="gridRows" size="2" value="" />' +
     '<label for="gridCols">Cols: </label>' + 
-    '<input type="text" id="gridCols" value="" />' +        
+    '<input type="text" id="gridCols" size="2" value="" />' +        
     '<input id="adjGrid" type="button" value="Adjust Grid" /></div>';
 
   var formHtmlZoom = '<div>' +
@@ -244,16 +257,24 @@ medview.html.AdjustForm = function(container, dgInstance)
     '<input id="adjZoom" type="range" min="5" max="200" step="5" value="100" />' + // onchange="updateSlider(this.value)"
     '</div>';
 
+  var formHtmlFrame = '<div class="bigControl">' +
+    '<label for="numFrame">Frame: </label>' + 
+    '<input id="numFrame" type="range" min="1" max="100" step="1" value="1" />' + // onchange="updateSlider(this.value)"
+    '<input id="mfPlay" type="button" value="Play / Stop" />' +
+    '</div>';
 
-  fg.html(formHtml + formHtmlGrid + formHtmlZoom);
+    '</div>';
+
+
+  fg.html(formHtml + formHtmlGrid + formHtmlZoom + formHtmlFrame);
   
   var fgTab = $('<div />');
   fgTab.attr('id', 'adjTab');
   fgTab.css({
     'position': 'relative',
-    'height': '30px',
+    'height': '50px',
     'width': '150px',
-    'left': '240px',
+    'left': '50px',
     'background': 'red',
     'background-color': 'rgb(191,127,191)',    
     'z-index': 5,
@@ -297,7 +318,9 @@ medview.html.AdjustForm = function(container, dgInstance)
   var afInstance = this; // AdjustForm instance
   
   this.zoomTimeOut = false;
-  this.delay = 200; // ToDo: Change delay to a configurable parameter
+  this.frameTimeOut = false;
+
+  this.delay = 20; // ToDo: Change delay to a configurable parameter
   
   // Timer to avoid unwanted calls to the zoom method
   $("#adjZoom").change(function() {
@@ -311,20 +334,87 @@ medview.html.AdjustForm = function(container, dgInstance)
 
   });
 
+  $("#numFrame").change(function() {
+    var numFrame = $("#numFrame").val();
+    var newZoom = $("#adjZoom").val(); 
+    
+    if (afInstance.frameTimeOut !== false) {
+      clearTimeout(afInstance.frameTimeOut);
+    }
+    afInstance.frameTimeOut = setTimeout(function() {afInstance.showFrame(numFrame, newZoom);}, afInstance.delay);
+  });
+
+  
+  // Play / Stop
+  $("#mfPlay").click(function() {
+    // MF: (0008,2144) Recommended Display Frame Rate
+    var imageView = dgInstance.ig.imgViews[0];
+    if (imageView.play) {
+      clearInterval(afInstance.frameInterval);
+      imageView.play = false;  
+    }
+    else {
+      imageView.play = true;      
+      var period = 1000 / imageView.frameRate;
+      console.log("frameRate: " + imageView.frameRate + "fps, T: " + period + "ms");
+      afInstance.frameInterval = setInterval(function(){afInstance.showFrameLoop(afInstance, imageView)}, period);
+    }
+  });
 }
 
+
+medview.html.AdjustForm.prototype.showFrameLoop = function(afInstance, imageView) {
+//  this = afInstance;
+  // console.log("showFrameLoop()");
+  afInstance.numFrame++;
+  if (afInstance.numFrame >= imageView.numFrames) {
+    //clearInterval(afInstance.frameInterval);
+    //console.log(imageView.numFrames);
+    afInstance.numFrame = 1;
+  }
+//  console.log("showFrame, this.numFrame: " + afInstance.numFrame);
+  afInstance.showFrame(afInstance.numFrame, imageView.zoom);
+//  setInterval(afInstance.showFrameLoop(afInstance), 2000);
+//  window.setTimeout(afInstance.showFrameLoop(afInstance), 5000);
+}
+
+
 medview.html.AdjustForm.prototype.zoom = function(zoomValue) {
-  console.log("zoom value: " + zoomValue);
-  console.log(this.dgInstance);
+//  console.log("zoom() " + zoomValue);
   
   var ig = this.dgInstance.ig; // ImageGrid
   if (ig) {  
     for (var i = 0; i < this.dgInstance.ig.imgViews.length; i++) {
-      this.dgInstance.ig.imgViews[i].displayInstance(zoomValue / 100.0);
+      var imageView = this.dgInstance.ig.imgViews[i];
+      imageView.zoom = zoomValue;
+      // imageView.displayInstance(zoomValue / 100.0);
+      imageView.displayFrameInstance(imageView.numFrame, zoomValue / 100.0);
     }
   }
-
 }
+
+medview.html.AdjustForm.prototype.showFrame = function(numFrame, zoomValue) {
+//  console.log("Display frame #:" + numFrame);
+
+  var ig = this.dgInstance.ig; // ImageGrid
+  if (ig) {
+
+/*
+// Cine-loop -> just one ImageView
+    for (var i = 0; i < this.dgInstance.ig.imgViews.length; i++) {
+      this.dgInstance.ig.imgViews[i].displayFrameInstance(numFrame, zoomValue / 100.0);
+    }
+*/    
+
+    var imageView = this.dgInstance.ig.imgViews[0];
+    // console.log("showFrame(), numFrame: " + imageView.numFrame + ", zoom: " + zoomValue);
+    imageView.numFrame = numFrame;
+    imageView.displayFrameInstance(numFrame, zoomValue / 100.0);
+
+  }
+  
+}
+
 
 // *****************************************************************************
 
@@ -338,7 +428,7 @@ medview.html.StudyList = function(container)
 
   // ToDo: Dimensions (dynamic / responsive)
   var studyAreaHtml = '<input id="backFromStudy" type="button" value="Back">' +
-    '<dl id="studyList" style="height: 600px; overflow: scroll; overflow-x: hidden;"></dl>';
+    '<dl id="studyList" style="min-height: 300px; overflow: scroll; overflow-x: hidden;"></dl>';
   // height: 600px; 
   this.listArea.html(studyAreaHtml);
 
@@ -391,7 +481,7 @@ medview.html.SeriesList = function(container)
   this.listArea = $("<div id=\"seriesListArea\"/>");
   
   var seriesAreaHtml = '<input id="backFromSeries" type="button" value="Back">' +
-    '<dl id="seriesList" style="height: 600px; overflow: scroll; overflow-x: hidden;"></dl>';
+    '<dl id="seriesList" style="min-height: 300px; overflow: scroll; overflow-x: hidden;"></dl>';
   this.listArea.html(seriesAreaHtml);
 
   container.append(this.listArea);
@@ -436,10 +526,12 @@ medview.html.SeriesList.prototype.clear = function() {
  * Base element to contain the full image
  * The element is created after the Dicom instance object has been loaded
  */
-medview.html.HiddenLayer = function(container, numFrames, frameRows, frameCols)
+medview.html.HiddenLayer = function(numFrames, frameRows, frameCols)
 {
   // ToDo: Multiframe support: Create an array of numFrames canvas ???
 
+/*
+// 20130614 in-memory canvas, out of the DOM
   this.layer = $('<canvas />');
   this.layer.css({
     'display': 'none'
@@ -448,15 +540,38 @@ medview.html.HiddenLayer = function(container, numFrames, frameRows, frameCols)
 
   var canvas = this.layer[0];
   // console.log(canvas);
+*/
+  this.numFrames = numFrames;
+  this.canvas = [];
   
-  canvas.height = frameRows;
-  canvas.width = frameCols;
+  // The ideal solution would be creating just the necessary ImageData elements. Unfortunately a whole Canvas must be created for every frame.
+  for (var i = 0; i < numFrames; i++) {
+    this.canvas[i] = document.createElement('canvas');
+    
+    this.canvas[i].height = frameRows;
+    this.canvas[i].width = frameCols;
+  }
+  
+//  this.frameImgData = [];
+  
 
 };
 
-medview.html.HiddenLayer.prototype.getCanvas = function() {
-  return this.layer[0];
+medview.html.HiddenLayer.prototype.getCanvas = function(numFrame) {
+//  return this.layer[0];
+  return this.canvas[numFrame - 1];
 };
+
+medview.html.HiddenLayer.prototype.getFrame = function(numFrame) {
+//  return this.layer[0];
+  return this.frameImgData[numFrame - 1];
+};
+
+medview.html.HiddenLayer.prototype.setFrame = function(numFrame, imgData) {
+//  return this.layer[0];
+  this.frameImgData[numFrame - 1] = imgData;
+};
+
 
 // *****************************************************************************
 
@@ -465,15 +580,25 @@ medview.html.HiddenLayer.prototype.getCanvas = function() {
  */
 medview.html.LoadingLayer = function(container, width, height)
 {
-  this.layer = $("<div class=\"splashLoading\"/>");
+/*
+width = 300;
+height = 200;
+*/
+
+  this.layer = $("<div class=\"splashLoading\">XYZ</div>");
+  this.htmlContents = "<div class=\"txtLoading\">Loading...</div>";
+  this.layer.html(this.htmlContents);
+
   this.layer.css({
     'display': 'none',
     'top': '0',
     'left': '0',
     'width': width + 'px',
     'height': height + 'px',
+    'z-index': '3000'
   });
   container.append(this.layer);
+//  this.setTxt("dummy");
 
 };
 
@@ -483,6 +608,20 @@ medview.html.LoadingLayer.prototype.setSize = function(width, height) {
     'height': height + 'px'
   });
 };
+
+medview.html.LoadingLayer.prototype.setTxt = function(txt) {
+//  console.log(this);
+//  console.log("setTxt: " + txt);
+  this.htmlContents = "<div class=\"txtLoading\">" + txt + "</div>";
+
+//  $(this.layer).html(this.htmlContents);
+  this.layer[0].innerHTML = this.htmlContents;
+//  this.layer[0].innerHTML = "*";
+
+//  this.layer[0].innerHTML = txt;
+
+//  this.htmlContents.html(txt);
+}
 
 
 /*
@@ -499,6 +638,7 @@ medview.html.LoadingLayer.prototype.getCanvas = function() {
  */
 medview.html.ImageLayer = function(container, width, height, zIndex)
 {
+//  console.log
   this.layer = $('<canvas />');
   this.layer.css({
     'position': 'absolute',
@@ -511,13 +651,9 @@ medview.html.ImageLayer = function(container, width, height, zIndex)
 
   container.append(this.layer);
 
-//  console.log("width: " + this.layer[0].width + ", width (2): " + width);  
-//  console.log(this.layer[0].width);
-
   // There are two sets of dimensions: Pixels inside the canvas and size of the canvas
   this.layer[0].width = width;
   this.layer[0].height = height;
-
 };
 
 medview.html.ImageLayer.prototype.setSize = function(width, height) {
@@ -574,6 +710,11 @@ medview.html.ImageView = function(container, numLayers, width, height, top, left
     this.imgLayers[i] = new medview.html.ImageLayer(this.iw, width, height, i);
   }
 
+  this.numFrames = 0; // Total number of frames
+  this.numFrame = 0; // Currently displayed frame
+  this.zoom = 100; // Current zoom value
+  this.frameRate = 1; // fps
+  this.play = false;
 };
 
 medview.html.ImageView.prototype.showLoading = function() {
@@ -584,6 +725,18 @@ medview.html.ImageView.prototype.showLoading = function() {
 medview.html.ImageView.prototype.hideLoading = function() {
   this.lLayer.layer.css({'display': 'none'});
 }
+
+medview.html.ImageView.prototype.setDimensions = function(width, height, top, left) {
+  this.iw.css({
+    'position': 'absolute',
+    'top': top + 'px',
+    'left': left + 'px',
+    'width': width,
+    'height': height,
+    'background-color': 'black'
+  });
+}
+
 
 // *************************************
 
@@ -697,7 +850,9 @@ medview.html.ImageView.prototype.setDicomInstance = function(dicomInstance) {
   this.populateTxtOverlay();
   this.displayTxtOverlay();
   this.prepareHidden();
-  this.displayInstance(1.0);
+  this.dicomInstance.setHidden(true);
+//  this.displayInstance(1.0);
+  this.displayFrameInstance(1, 1.0);
 };
 
 medview.html.ImageView.prototype.hasDicomInstance = function() {
@@ -715,31 +870,16 @@ medview.html.ImageView.prototype.hasDicomInstance = function() {
 medview.html.ImageView.prototype.prepareHidden = function() {
 
   var numFrames, frameRows, frameCols;
-  numFrames = this.dicomInstance.getField(0x0028, 0x0008);
-  frameRows = this.dicomInstance.getField(0x0028, 0x0010);
-  frameCols = this.dicomInstance.getField(0x0028, 0x0011);
+  numFrames = this.dicomInstance.getField(0x0028, 0x0008)[0];
+  numFrames = numFrames ? numFrames : 1;
+  frameRows = this.dicomInstance.getField(0x0028, 0x0010)[0];
+  frameCols = this.dicomInstance.getField(0x0028, 0x0011)[0];
 
-  this.hLayer = new medview.html.HiddenLayer(this.iw, numFrames, frameRows, frameCols);
-  
-  // 32-bit Pixel Manipulation ???
-// http://jsperf.com/canvas-pixel-manipulation/68
-// https://hacks.mozilla.org/2011/12/faster-canvas-pixel-manipulation-with-typed-arrays/
-  
-  // var hiddenLayer = this.hLayer;
-  var canvas = this.hLayer.getCanvas();
-
-  var canvasWidth  = canvas.width;
-  var canvasHeight = canvas.height;
-  // console.log("canvasWidth: " + canvasWidth + ", canvasHeight: " + canvasHeight);
-  
   var start = new Date().getTime();
   
-  var ctx = canvas.getContext('2d');
-  var imageData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
-  // var imageData = ctx.createImageData(canvasWidth, canvasHeight);
 
 
-  var samplesPerPixel = this.dicomInstance.getField(0x0028, 0x0002);
+  var samplesPerPixel = this.dicomInstance.getField(0x0028, 0x0002)[0];
   console.log("samplesPerPixel: " + samplesPerPixel);
 
   // MONOCHROME1, MONOCHROME2, RGB, PALETTECOLOR
@@ -747,19 +887,6 @@ medview.html.ImageView.prototype.prepareHidden = function() {
   // http://www.medicalconnections.co.uk/kb/Photometric_Interpretations
   var photometricInterpretation = this.dicomInstance.getField(0x0028, 0x0004)[0];
   console.log("photometricInterpretation: " + photometricInterpretation);
-
-  var numberOfFrames = this.dicomInstance.getField(0x0028, 0x0008)[0];
-  console.log("numberOfFrames: " + numberOfFrames);
-
-
-  var buffer = this.dicomInstance.sampleBuf.buffer;
-
-/*
-  var pixelPaddingValue = readDicomTag(xml, "00280120");
-  var pixelPaddingRangeLimit = readDicomTag(xml, "00280121");
-
-  // http://stackoverflow.com/questions/8756096/window-width-and-center-calculation-of-dicom-image/8765366#8765366
-*/
 
   // Rescale: Modality LUT. Only for grayscale images.
   var rescaleIntercept = this.dicomInstance.getField(0x0028, 0x1052); // 0040,4178
@@ -774,13 +901,13 @@ medview.html.ImageView.prototype.prepareHidden = function() {
 // http://developer.apple.com/library/ios/#documentation/AppleApplications/Reference/SafariWebContent/CreatingContentforSafarioniPhone/CreatingContentforSafarioniPhone.html
 
   // ToDo: Lut function returning 3 parameters (R, G, B) 
-  var populateImageData = function (lut) {
+  var populateImageData = function (buffer, imageData, lut) {
     var value;
     var i = 0;
     var pos = 0;
     
-    for (var y = 0; y < canvasHeight; y++) {
-      for (var x = 0; x < canvasWidth; x++) {
+    for (var y = 0; y < frameRows; y++) {
+      for (var x = 0; x < frameCols; x++) {
         // value = buffer[pos] * rescaleSlope + rescaleIntercept;
         // value = buffer[pos];
         value = lut(buffer[pos]);
@@ -794,12 +921,13 @@ medview.html.ImageView.prototype.prepareHidden = function() {
         pos++;
       }
     }
+    return imageData;
   }
   
   var instanceIV = this; // Instance of this ImageView
   
   // samplesPerPixel (0028,0002) = 3
-  var populateImageDataRGB = function () {
+  var populateImageDataRGB = function (buffer, imageData) {
 
     // Planar Configuration
     // http://www.medicalconnections.co.uk/kb/Planar_configuration
@@ -825,45 +953,36 @@ medview.html.ImageView.prototype.prepareHidden = function() {
       stepPos = 3;
     }
     
-    for (var y = 0; y < canvasHeight; y++) {
-      for (var x = 0; x < canvasWidth; x++) {
-        // value = buffer[pos] * rescaleSlope + rescaleIntercept;
-        // value = buffer[pos];
-/*        
-        valueR = lut(buffer[posR]);
-        valueG = lut(buffer[posG]);
-        valueB = lut(buffer[posB]);
-*/        
+//    for (var y = 0; y < canvasHeight; y++) {
+//      for (var x = 0; x < canvasWidth; x++) {
+    for (var y = 0; y < frameRows; y++) {
+      for (var x = 0; x < frameCols; x++) {
+
         posR += stepPos;
         posG += stepPos;
         posB += stepPos;
 
-/*
-        imageData.data[i]   = valueR; // R
-        imageData.data[i+1] = valueG; // G
-        imageData.data[i+2] = valueB; // B
-*/      
         imageData.data[i]   = buffer[posR]; // R
         imageData.data[i+1] = buffer[posG]; // G
         imageData.data[i+2] = buffer[posB]; // B
-  
         imageData.data[i+3] = 255;   // A
         
-
         i += 4;
       }
     }
+    return imageData;
   }
 
   // 20130610: Adding support for PALETTE COLOR (ToDo)
-  var populateImageDataPalette = function (lut) {
+  var populateImageDataPalette = function (buffer, imageData, lut) {
     var value;
     var i = 0;
     var pos = 0;
     
-    for (var y = 0; y < canvasHeight; y++) {
-      for (var x = 0; x < canvasWidth; x++) {
-        // value = buffer[pos] * rescaleSlope + rescaleIntercept;
+//    for (var y = 0; y < canvasHeight; y++) {
+//      for (var x = 0; x < canvasWidth; x++) {
+    for (var y = 0; y < frameRows; y++) {
+      for (var x = 0; x < frameCols; x++) {
         // value = buffer[pos];
         value = lut(buffer[pos]);
 
@@ -876,6 +995,7 @@ medview.html.ImageView.prototype.prepareHidden = function() {
         pos++;
       }
     }
+    return imageData;
   }
  
 
@@ -899,8 +1019,8 @@ medview.html.ImageView.prototype.prepareHidden = function() {
       var valMax = buffer[0];
       var valMin = buffer[0];
 
-      for (var y = 0; y < canvasHeight; y++) {
-        for (var x = 0; x < canvasWidth; x++) {
+      for (var y = 0; y < frameRows; y++) {
+        for (var x = 0; x < frameCols; x++) {
         // value = buffer[pos] * rescaleSlope + rescaleIntercept;
         // value = buffer[pos];
         value = buffer[pos];
@@ -913,6 +1033,10 @@ medview.html.ImageView.prototype.prepareHidden = function() {
         }
         ww = valMax - valMin;
         wc = valMin + ww/2;
+
+        // if (pos % 10000 == 0) {
+        //   console.log("buffer[" + pos + "] = " + value);
+        // }
 
         pos++;
       }
@@ -927,6 +1051,31 @@ medview.html.ImageView.prototype.prepareHidden = function() {
     }
   }
 
+  this.hLayer = new medview.html.HiddenLayer(numFrames, frameRows, frameCols);
+  console.log(this);
+
+  // 32-bit Pixel Manipulation ???
+// http://jsperf.com/canvas-pixel-manipulation/68
+// https://hacks.mozilla.org/2011/12/faster-canvas-pixel-manipulation-with-typed-arrays/
+  
+  // var hiddenLayer = this.hLayer;
+  
+  
+/*
+  var canvas = this.hLayer.getCanvas(1); // numFrame
+  var canvasWidth  = canvas.width;
+  var canvasHeight = canvas.height;
+  // console.log("canvasWidth: " + canvasWidth + ", canvasHeight: " + canvasHeight);
+  var ctx = canvas.getContext('2d');
+  var imageData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
+  // var imageData = ctx.createImageData(canvasWidth, canvasHeight);
+*/
+
+  var self = this; // Reference
+  var populateFrame; // function to populate frames for any kind of images
+  this.numFrames = numFrames; // Total number of frames
+  this.numFrame = 0; // Currently displayed frame (store only one)
+  this.frameRate = this.dicomInstance.getField(0x0008, 0x2144)[0]; // fps
 
 
   switch (photometricInterpretation) {
@@ -950,13 +1099,24 @@ medview.html.ImageView.prototype.prepareHidden = function() {
         lut = function(value) {return coefA * (rescaleSlope * value + rescaleIntercept) + coefB;}
       }
       else {
-        lut = function(value) {return coefA * value + coefB;}      
+        lut = function(value) {return coefA * value + coefB;}
       }
-      populateImageData(lut);
+//      populateImageData(lut);
+      
+      populateFrame = (function(i) {
+        return populateImageData(self.dicomInstance.frameBuf[i], self.fimageData, lut);               
+      });
+
+      
       break;
 
     case "RGB":
-      populateImageDataRGB();
+//      populateImageDataRGB(this.dicomInstance.frameBuf[i], fimageData);
+      
+      populateFrame = (function(i) {
+        return populateImageDataRGB(self.dicomInstance.frameBuf[i], self.fimageData);               
+      });
+      
       break;
       
     case "PALETTE COLOR":
@@ -975,7 +1135,12 @@ medview.html.ImageView.prototype.prepareHidden = function() {
         return pixel;
       }
 
-      populateImageDataPalette(lut); // display time, assoc object: 15 ~ 17ms, array: 24
+
+      populateFrame = (function(i) {
+        var frameImageData = populateImageDataPalette(self.dicomInstance.frameBuf[i], self.fimageData, lut);               
+        return frameImageData;
+      });
+
       break;
 
       
@@ -983,7 +1148,13 @@ medview.html.ImageView.prototype.prepareHidden = function() {
       break;
   }
 
-  ctx.putImageData(imageData, 0, 0);
+
+  this.processFrameInterval = false;
+  this.processFrame(this, 0, numFrames, populateFrame);
+
+  
+//  this.dicomInstance.frameBuf = null;
+
 
   var end = new Date().getTime();
   var time = end - start;
@@ -991,10 +1162,56 @@ medview.html.ImageView.prototype.prepareHidden = function() {
 
 };
 
+
+// Timed frame loop to avoid browser collapse
+// http://kryogenix.org/days/2009/07/03/not-blocking-the-ui-in-tight-javascript-loops
+medview.html.ImageView.prototype.processFrame = function(ivInstance, i, numFrames, populateFrame) {
+  if (i < numFrames) {
+    period = 0;
+//  setTimeout(ImageView.prototype.processFrame, 1);
+//     afInstance.frameInterval = setInterval(function(){afInstance.showFrameLoop(afInstance, imageView)}, period);
+
+    var numFrame = i + 1;
+    var fcanvas = ivInstance.hLayer.getCanvas(numFrame);
+    var fcanvasWidth  = fcanvas.width;
+    var fcanvasHeight = fcanvas.height;
+    var fctx = fcanvas.getContext('2d');
+
+    // console.log("canvasWidth: " + canvasWidth + ", canvasHeight: " + canvasHeight);
+//        var fimageData = fctx.getImageData(0, 0, canvasWidth, canvasHeight);
+//    var fimageData = fctx.createImageData(canvasWidth, canvasHeight);
+    ivInstance.fimageData = fctx.createImageData(fcanvasWidth, fcanvasHeight);
+
+//      populateImageDataPalette(lut); // display time, assoc object: 15 ~ 17ms, array: 24
+//    console.log("Obtaining image data. Frame #" + i + "/" + numFrames);
+    this.lLayer.setTxt("Processing frame #" + i + " / " + numFrames);
+    
+    
+    fimageData = populateFrame(i); // display time, assoc object: 15 ~ 17ms, array: 24
+    
+    ivInstance.dicomInstance.frameBuf[i] = null; // Release frame buffer memory
+    fctx.putImageData(fimageData, 0, 0);
+
+
+    ivInstance.processFrameTimeout = setTimeout(function(){ivInstance.processFrame(ivInstance, i+1, numFrames, populateFrame)}, period);
+  }
+  else {
+    ivInstance.endProcessing(ivInstance);
+  }
+}
+
+medview.html.ImageView.prototype.endProcessing = function(self) {
+  console.log("Frame processing ended");
+  
+  self.hideLoading();
+}
+
+
 // *****************************************************************************
 // *****************************************************************************
 
 medview.html.ImageView.prototype.setSizePos = function(width, height, top, left) {
+  console.log("ImageView.setSizePos()");
 
   // iw.attr('class', 'imageview');
   this.iw.css({
@@ -1011,7 +1228,8 @@ medview.html.ImageView.prototype.setSizePos = function(width, height, top, left)
   }
 
   this.displayTxtOverlay();
-  this.displayInstance(1.0);
+//  this.displayInstance(1.0);
+  this.displayFrameInstance(1, 1.0);
 
   // .setSize(deltaX, deltaY, offsetTop, offsetLeft);
 }
@@ -1021,13 +1239,21 @@ medview.html.ImageView.prototype.setSizePos = function(width, height, top, left)
 /**
  * Copies some area of the hidden image to the visible canvas
  */
-medview.html.ImageView.prototype.displayInstance = function(localZoom) {
+medview.html.ImageView.prototype.displayInstance_ = function(localZoom) {
+  console.log("ImageView.displayInstance()");
   var start = new Date().getTime();
 
-  var canvas = this.hLayer.getCanvas();
+  var numFrame = 1;
+  var canvas = this.hLayer.getCanvas(numFrame);
   var canvasWidth  = canvas.width;
   var canvasHeight = canvas.height;
   var ctx = canvas.getContext('2d');
+
+/*
+  console.log(canvas);
+  var frameImageData = this.hLayer.getFrame(numFrame);
+  console.log(frameImageData);
+*/
 
   var canvas2 = this.getImageLayer(0).getCanvas();
   
@@ -1043,6 +1269,8 @@ medview.html.ImageView.prototype.displayInstance = function(localZoom) {
 
   // http://www.w3schools.com/tags/canvas_drawimage.asp
   context2.drawImage(canvas, 0, 0, canvasWidth, canvasHeight, newX, newY, newWidth, newHeight);
+//  context2.putImageData(frameImageData, newX, newY, 0, 0, newWidth, newHeight);
+  console.log(canvasWidth + "|" + canvasHeight + "|" + newX + "|" + newY + "|" + newWidth + "|" + newHeight + "|" + imgZoom);
 
 //    alert("cw: " + canvasWidth + ", ch: " + canvasHeight + ", nw: " + newWidth + ", nh: " + newHeight);
 
@@ -1051,6 +1279,51 @@ medview.html.ImageView.prototype.displayInstance = function(localZoom) {
   console.log("displayInstance(): " + time + "ms");
 //  alert("displayInstance(): " + time + "ms");
 }
+
+// ToDo...
+medview.html.ImageView.prototype.displayFrameInstance = function(numFrame, localZoom) {
+  // console.log("ImageView.displayFrameInstance(" + numFrame + ", " + localZoom + ")");
+  this.numFrame = numFrame;
+  
+  var start = new Date().getTime();
+
+//  var numFrame = 1;
+
+  var canvas = this.hLayer.getCanvas(numFrame);
+  var canvasWidth  = canvas.width;
+  var canvasHeight = canvas.height;
+  var ctx = canvas.getContext('2d');
+/*  
+//  console.log(canvas);
+  var frameImageData = this.hLayer.getFrame(numFrame);
+//  console.log(frameImageData);
+*/
+  var canvas2 = this.getImageLayer(0).getCanvas();
+  
+  var context2 = canvas2.getContext('2d');
+  context2.clearRect(0, 0, canvas2.width, canvas2.height);
+  
+  var imgZoom = Math.min(canvas2.width/canvasWidth, canvas2.height/canvasHeight) * localZoom;
+  var newWidth = canvasWidth * imgZoom;
+  var newX = (canvas2.width - newWidth) / 2;
+
+  var newHeight = canvasHeight * imgZoom;
+  var newY = (canvas2.height - newHeight) / 2;
+
+  // http://www.w3schools.com/tags/canvas_drawimage.asp
+  context2.drawImage(canvas, 0, 0, canvasWidth, canvasHeight, newX, newY, newWidth, newHeight);
+//  context2.putImageData(frameImageData, newX, newY, 0, 0, canvasWidth, canvasHeight);
+//  console.log(canvasWidth + "|" + canvasHeight + "|" + newX + "|" + newY + "|" + newWidth + "|" + newHeight + "|" + imgZoom);
+
+//    alert("cw: " + canvasWidth + ", ch: " + canvasHeight + ", nw: " + newWidth + ", nh: " + newHeight);
+
+  var end = new Date().getTime();
+  var time = end - start;
+//  console.log("displayFrameInstance(): " + time + "ms");
+
+//  alert("displayInstance(): " + time + "ms");
+}
+
 
 // *****************************************************************************
 
@@ -1092,10 +1365,10 @@ medview.html.ImageGrid = function(container, width, height)
 
   this.instanceLoaded = function(instance) {
     console.log("Instance loaded");
-    instance.setLoaded(true);
+    instance.setLoaded(true); // MF still to be processed
     // Pairs the ImageView Object to the DicomInstance just loaded
     this.indexInstances[instance.uid].setDicomInstance(instance);
-    this.indexInstances[instance.uid].hideLoading();
+//    this.indexInstances[instance.uid].hideLoading();
   }
 };
 
@@ -1128,7 +1401,7 @@ medview.html.ImageGrid.prototype.clear = function() {
 
 medview.html.ImageGrid.prototype.setRowsCols = function(numRows, numCols) {
 
-  console.log("setRowsCols()");
+  console.log("+++ setRowsCols() +++ START");
   this.clear();
   
   this.rows = numRows;
@@ -1142,17 +1415,30 @@ medview.html.ImageGrid.prototype.setRowsCols = function(numRows, numCols) {
   for (var row=0; row < numRows; row++) {
     offsetLeft = 0;
     for (var col=0; col < numCols; col++) {
-      this.imgViews[this.getPos(row, col)] = new medview.html.ImageView(this.grid, this.numLayers, deltaX, deltaY, offsetTop, offsetLeft);
+      // Examine if there is already an ImageView for that position
+      var pos = this.getPos(row, col);
+      if (this.imgViews[pos]) {
+        // Resize the ImageView
+        console.log("No new ImageView");
+        this.imgViews[pos].setDimensions(deltaX, deltaY, offsetTop, offsetLeft);
+      }
+      else {
+        console.log("New ImageView");
+        this.imgViews[pos] = new medview.html.ImageView(this.grid, this.numLayers, deltaX, deltaY, offsetTop, offsetLeft);
+      }
+      // Clear the unused ImageViews ???
       // console.log("ImageView created, row: " + row + ", col: " + col + ", offsetTop: " + offsetTop + ", offsetLeft: " + offsetLeft);
       offsetLeft += deltaX;
     }
     offsetTop += deltaY;
   }
+  console.log("--- setRowsCols() --- END");
 
 }
 
 
 medview.html.ImageGrid.prototype.setSize = function(width, height) {
+  console.log("ImageGrid.setSize()");
   this.width = width;
   this.height = height;
 

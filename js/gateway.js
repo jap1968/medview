@@ -350,6 +350,7 @@ medview.gateway.DicomGateway.prototype.parseXmlStudy = function(xml) {
 // *****************************************************************************
 
 medview.gateway.DicomGateway.prototype.layoutGrid = function() {
+  console.log("DicomGateway.layoutGrid()");
 
   var viewportWidth = $(window).width();
   var viewportHeight = $(window).height();
@@ -371,8 +372,8 @@ medview.gateway.DicomGateway.prototype.layoutGrid = function() {
   console.log("dRows: " + desiredRows + ", dCols: " + desiredCols);
 
 // *** 20130522: Test. Force 1 x 1
-//  this.ig.setRowsCols(1, 1);
-  this.ig.setRowsCols(desiredRows, desiredCols);
+  this.ig.setRowsCols(1, 1);
+//  this.ig.setRowsCols(desiredRows, desiredCols);
 
 }
 
@@ -443,12 +444,19 @@ medview.gateway.DicomGateway.prototype.displayGridSeries = function() {
 
         // Once loaded, the ImageGrid object is notified.
         if (instance.loaded) {
-          ig.instanceLoaded(instance);
+          // Additional status: Loaded, Modality LUT, VOI LUT, Presentation LUT
+          if (instance.hidden) {
+            // this = imageview
+            iv.displayFrameInstance(1, 1.0);
+          }
+          else {
+            ig.instanceLoaded(instance);
+          }
         }
         else {
           // show loading icon splash should be started here
           urlDicom = this.getUriWado(series.study.uid, series.uid, instance.uid);
-          instance.load(urlDicom, function(dicomInstance) {ig.instanceLoaded(dicomInstance);});
+          instance.load(urlDicom, iv, function(dicomInstance) {ig.instanceLoaded(dicomInstance);});
         }
       }
       
@@ -474,16 +482,21 @@ medview.gateway.DicomGateway.prototype.getStudyInfo = function(studyUID) {
 
 // *****************************************************************************
 
+
 medview.gateway.DicomGateway.prototype.setSize = function(width, height) {
+  console.log("DicomGateway.setSize()");
   console.log(this);
   if (this.ig) {
     this.ig.setSize(width, height);
+/*    
     if (this.series) {
       this.layoutGrid();
       this.displayGridSeries();
     }
+*/    
   }
 }
+
 
 // *****************************************************************************
 

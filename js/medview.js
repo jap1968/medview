@@ -47,10 +47,15 @@ $(document).ready(function(){
 
 function medviewResize() {
 
-  console.log("resize");
+  console.log("medviewResize()");
   var viewportWidth = $(window).width();
   var viewportHeight = $(window).height();
-  // alert("Size: W: " + viewportWidth + ", H: " + viewportHeight);
+  var cw = document.documentElement.clientWidth;
+  var ch = document.documentElement.clientHeight;
+  var iw = window.innerWidth;
+  var ih = window.innerHeight;
+  
+//  alert("Size: W: " + viewportWidth + ", H: " + viewportHeight + ", CW: " + cw + ", CH: " + ch + ", iw: " + iw + ", ih: " + ih);
   mainDG.setSize(viewportWidth, viewportHeight);
 //  console.log($(this));
 

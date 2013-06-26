@@ -18,7 +18,19 @@ input {
  font-family: sans-serif;
 }
 
+/*
+.bigControl {
+  font-size: 2.5em;
+  height: 1em;
+  border: 1px solid red;
+}
+*/
+
 /* ************************************************************************** */
+
+.splashLoading {
+  position: absolute;
+}
 
 .splashLoading:before {
   position: absolute;
@@ -28,7 +40,16 @@ input {
   overflow: hidden;
   z-index: 2000;
   pointer-events: auto;
-  background: rgba(255, 255, 255, 0.8) url('./img/splash.gif') 50% 50% no-repeat;
+  background: rgba(0, 0, 0, 0.2) url('./img/splash.gif') 50% 50% no-repeat;
+}
+
+.txtLoading {
+  margin-top: 2em;
+  font-weight: bold;
+  font-family: sans-serif;
+  font-size: 2em;
+  color: white;
+  text-align: center;
 }
 
 /* ************************************************************************** */
@@ -67,7 +88,7 @@ input {
   z-index: 10;
   display: none;
   position: relative;
-  height: 700px;
+/*  height: 500px;*/
 }
 
 /*
