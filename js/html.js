@@ -64,7 +64,7 @@ medview.html.CFindForm = function(container, dgInstance)
     'height': '400px',
     'position': 'relative',
     'background-color': 'rgb(127,191,191)',
-    'z-index': 10,
+    'z-index': 9,
     'opacity': 0.9
   }); // <!-- filter:alpha(opacity=50); -->
 
@@ -998,12 +998,12 @@ medview.html.ImageView.prototype.prepareHidden = function() {
     return imageData;
   }
  
-
-  // https://www.dabsoft.ch/dicom/3/C.11.2.1.2/
-  var wc, ww;
-  if ((photometricInterpretation === "MONOCHROME1" || photometricInterpretation === "MONOCHROME2")) {
-    wc = this.dicomInstance.getField(0x0028, 0x1050); // 0040,4176
-    ww = this.dicomInstance.getField(0x0028, 0x1051); // 0040,4177
+ 
+  var getWindowLevel = function(dicomInstance, frameRows, frameCols) {
+    // https://www.dabsoft.ch/dicom/3/C.11.2.1.2/
+    var wc = dicomInstance.getField(0x0028, 0x1050); // 0040,4176
+    var ww = dicomInstance.getField(0x0028, 0x1051); // 0040,4177
+    var buffer = dicomInstance.frameBuf[0];
 
     console.log("WC: " + wc + ", WW: " + ww);
   
@@ -1018,6 +1018,7 @@ medview.html.ImageView.prototype.prepareHidden = function() {
       var pos = 0;
       var valMax = buffer[0];
       var valMin = buffer[0];
+      var value;
 
       for (var y = 0; y < frameRows; y++) {
         for (var x = 0; x < frameCols; x++) {
@@ -1043,13 +1044,16 @@ medview.html.ImageView.prototype.prepareHidden = function() {
     }
     console.log("valMax: " + valMax + ", valMin: " + valMin + ", wc: " + wc + ", ww: " + ww);
 
-/*    
-      console.log("No preset window Levels. Using default values");
-      wc = 40;
-      ww = 350;
-      */
     }
+    
+    var voi = {
+      "wc": wc,
+      "ww": ww
+    };
+    return voi;
+
   }
+
 
   this.hLayer = new medview.html.HiddenLayer(numFrames, frameRows, frameCols);
   console.log(this);
@@ -1071,7 +1075,7 @@ medview.html.ImageView.prototype.prepareHidden = function() {
   // var imageData = ctx.createImageData(canvasWidth, canvasHeight);
 */
 
-  var self = this; // Reference
+  var self = this; // Reference (*** necessary ???)
   var populateFrame; // function to populate frames for any kind of images
   this.numFrames = numFrames; // Total number of frames
   this.numFrame = 0; // Currently displayed frame (store only one)
@@ -1082,6 +1086,10 @@ medview.html.ImageView.prototype.prepareHidden = function() {
 
     case "MONOCHROME2":
     case "MONOCHROME1":
+      var voi = getWindowLevel(this.dicomInstance, frameRows, frameCols);
+      var wc = voi["wc"];
+      var ww = voi["ww"];
+
       var coefPhotInt = photometricInterpretation === "MONOCHROME2" ? 1 : -1;
       console.log("coefPhotInt: " + coefPhotInt);
 
