@@ -173,7 +173,7 @@ medview.gateway.DicomGateway = function()
         lastPatId = studyData["patId"];
       }
 
-      $('<dd class="study" studyUID="' + studyData["studyUID"] + '"></dd>').html(studyData["studyDate"] + ' - ' + studyData["studyMods"] + studyData["studyDescr"] + studyData["studyNumSeries"]).appendTo(studyList);
+      $('<dd class="study" studyUID="' + studyData["studyUID"] + '"></dd>').html(studyData["studyDate"] + ' - ' + studyData["studyMods"] + '&nbsp;' + studyData["studyDescr"] + '&nbsp;' + studyData["studyNumSeries"]).appendTo(studyList);
 
     });
 
