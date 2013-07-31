@@ -1080,12 +1080,12 @@ medview.html.ImageView.prototype.prepareHidden = function() {
   this.numFrames = numFrames; // Total number of frames
   this.numFrame = 0; // Currently displayed frame (store only one)
   this.frameRate = this.dicomInstance.getField(0x0008, 0x2144)[0]; // fps
-
-
+  
   switch (photometricInterpretation) {
 
     case "MONOCHROME2":
     case "MONOCHROME1":
+
       var voi = getWindowLevel(this.dicomInstance, frameRows, frameCols);
       var wc = voi["wc"];
       var ww = voi["ww"];
@@ -1114,7 +1114,6 @@ medview.html.ImageView.prototype.prepareHidden = function() {
       populateFrame = (function(i) {
         return populateImageData(self.dicomInstance.frameBuf[i], self.fimageData, lut);               
       });
-
       
       break;
 
@@ -1153,13 +1152,12 @@ medview.html.ImageView.prototype.prepareHidden = function() {
 
       
     default:
+      console.log("Non supported photometric interpretation: " + photometricInterpretation);
       break;
   }
 
-
   this.processFrameInterval = false;
   this.processFrame(this, 0, numFrames, populateFrame);
-
   
 //  this.dicomInstance.frameBuf = null;
 

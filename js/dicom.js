@@ -654,10 +654,18 @@ medview.dicom.DataElement.prototype.readString = function(dv, length)
     str += String.fromCharCode(dv.getUint8(i));
   }
   
-  // Values with a VR of UI are padded with a single trailing NULL (00H) character when necessary to achieve even length.
-  if (this.vr === "UI" && str[str.length - 1] === String.fromCharCode(0x00)) {
+  // Values with a VR of UI or OB are padded with a single trailing NULL (00H) character when necessary to achieve even length.
+/*
+  if ((this.vr === "UI" || this.vr === "OB") && str[str.length - 1] === String.fromCharCode(0x00)) {
     str = str.substring(0, str.length-1); 
   }
+*/
+
+  // In some cases, strings with a VR of CS are padded with a single NULL (00H) character
+  if (str[str.length - 1] === String.fromCharCode(0x00)) {
+    str = str.substring(0, str.length-1); 
+  }
+
   
   this.curOffset += length;
   return str;
